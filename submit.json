@@ -43,7 +43,6 @@
 	],
 	"pools":[
 		{
-			"name":"tank1",
 			"type":"raidz2",
 			"vdevs":2,
 			"disks":16,

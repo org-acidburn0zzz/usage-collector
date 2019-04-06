@@ -1,29 +1,55 @@
 {
 	"platform":"FreeNAS",
 	"version":"11.2-U3",
-	"services":{
-		"ad":false,
-		"afp":false,
-		"iscsi":true,
-		"ldap":false,
-		"nfs":true,
-		"replication":true,
-		"smb":true,
-		"snapshots":true,
-		"s3":false
-	},
-	"plugins":{
-		"plexmediaserver":"1.4.0.99",
-		"radarr":"1.4.0."
-	},
-	"pools":{
-		"tank1":{
+	"services":[
+		{
+			"name":"ad",
+			"enabled":false
+		},
+		{
+			"name":"afp",
+			"enabled":false
+		},
+		{
+			"name":"iscsi",
+			"enabled":false
+		},
+		{
+			"name":"ldap",
+			"enabled":false
+		},
+		{
+			"name":"nfs",
+			"enabled":false
+		},
+		{
+			"name":"replication",
+			"enabled":false
+		},
+		{
+			"name":"smb",
+			"enabled":false
+		}
+	],
+	"plugins":[
+		{
+			"name":"plexmediaserver",
+			"version":"1.4.0.99"
+		},
+		{
+			"name":"radarr",
+			"version":"1.1.0"
+		}
+	],
+	"pools":[
+		{
+			"name":"tank1",
 			"type":"raidz2",
 			"vdevs":2,
 			"disks":16,
 			"capacity":14000
 		}
-	},
+	],
 	"hardware":{
 		"cpus":8,
 		"memory":8,

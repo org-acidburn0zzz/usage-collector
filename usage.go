@@ -44,11 +44,13 @@ type t_plugin_count struct {
 type t_pool_vdev_count struct {
     Type string
     Vdevs int
+    Count int
 }
 
 type t_pool_disk_count struct {
     Type string
     Disks int
+    Count int
 }
 
 type t_pool_capacity_count struct {
@@ -173,11 +175,14 @@ func flush_json_to_disk() {
 }
 
 func parse_data(s submission_json) {
+
+    // Do this all within a locked mutex
     wlock.Lock()
 
     // Update our in-memory counters
     increment_platform(s)
-    log.Println(s.Version)
+
+    // TODO increment other submitted counters
     log.Println(s.Plugins)
     log.Println(s.Pools)
     log.Println(s.Hardware)
@@ -192,7 +197,9 @@ func parse_data(s submission_json) {
         WCOUNTER++
     }
 
-    log.Println(TJSON)
+    //log.Println(TJSON)
+
+    // Unlock the mutex now
     wlock.Unlock()
 }
 
@@ -221,8 +228,8 @@ func main() {
     signal.Notify(gracefulStop, syscall.SIGINT)
     go func() {
         sig := <-gracefulStop
-        log.Println("caught sig: %+v", sig)
-        log.Println("Flushing JSON to disk")
+	log.Println("%v", sig)
+	log.Println("Caught Signal. Flushing JSON to disk")
 	flush_json_to_disk()
         os.Exit(0)
     }()

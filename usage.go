@@ -3,8 +3,12 @@ package main
 import (
     "encoding/json"
     "log"
+    "io/ioutil"
     "net/http"
+    "os"
+    "os/signal"
     "sync"
+    "syscall"
     "time"
 )
 
@@ -17,6 +21,9 @@ var DAILYFILE string
 // Create our mutex we use to prevent race conditions when updating
 // counters
 var wlock sync.Mutex
+
+// Counter for number of increments before a write
+var WCOUNTER = 0
 
 //////////////////////////////////////////////////////////
 // Tracking JSON Structs
@@ -66,6 +73,8 @@ type tracking_json struct {
     Poolcapacity []t_pool_capacity_count `json:"poolcapacity"`
 }
 
+var TJSON tracking_json
+
 //////////////////////////////////////////////////////////
 // Submission JSON structs
 //////////////////////////////////////////////////////////
@@ -106,7 +115,7 @@ type submission_json struct {
 // Clear out the JSON structure counters
 func zero_out_stats() {
 	wlock.Lock()
-
+	TJSON = tracking_json{}
 	wlock.Unlock()
 }
 
@@ -126,18 +135,64 @@ func get_daily_filename() {
 func load_daily_file() {
     get_daily_filename()
 
+    // No file yet? Lets clear out the struct
+    if _, err := os.Stat(DAILYFILE) ; os.IsNotExist(err) {
+	zero_out_stats()
+        return
+    }
+
+    // Load the file into memory
+    dat, err := ioutil.ReadFile(DAILYFILE)
+    if ( err != nil ) {
+	log.Println(err)
+        log.Fatal("Failed loading daily file: " + DAILYFILE )
+    }
+    if err := json.Unmarshal(dat, &TJSON); err != nil {
+	log.Println(err)
+        log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
+    }
+}
+
+func increment_platform(s submission_json) {
+    for i, _ := range TJSON.Platforms {
+	if ( TJSON.Platforms[i].Name == s.Platform && TJSON.Platforms[i].Version == s.Version ) {
+		TJSON.Platforms[i].Count++
+		return
+	}
+    }
+    var newPlat t_plat_count
+    newPlat.Name = s.Platform
+    newPlat.Version = s.Version
+    newPlat.Count = 1
+    TJSON.Platforms = append(TJSON.Platforms, newPlat)
+}
+
+func flush_json_to_disk() {
+    file, _ := json.MarshalIndent(TJSON, "", " ")
+    _ = ioutil.WriteFile(DAILYFILE, file, 0644)
 }
 
 func parse_data(s submission_json) {
     wlock.Lock()
 
-    log.Println(s.Platform)
+    // Update our in-memory counters
+    increment_platform(s)
     log.Println(s.Version)
     log.Println(s.Plugins)
     log.Println(s.Pools)
     log.Println(s.Hardware)
     log.Println(s.Services)
 
+    // Every 5 updates, we update the JSON file on disk
+    if ( WCOUNTER >= 5 ) {
+	log.Println("Flushing to disk")
+        flush_json_to_disk()
+	WCOUNTER=0
+    } else {
+        WCOUNTER++
+    }
+
+    log.Println(TJSON)
     wlock.Unlock()
 }
 
@@ -159,6 +214,18 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 
 // Lets do it!
 func main() {
+
+    // Capture SIGTERM and flush JSON to disk
+    var gracefulStop = make(chan os.Signal)
+    signal.Notify(gracefulStop, syscall.SIGTERM)
+    signal.Notify(gracefulStop, syscall.SIGINT)
+    go func() {
+        sig := <-gracefulStop
+        log.Println("caught sig: %+v", sig)
+        log.Println("Flushing JSON to disk")
+	flush_json_to_disk()
+        os.Exit(0)
+    }()
 
     // Read the daily file into memory at startup
     load_daily_file()

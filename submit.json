@@ -46,10 +46,12 @@
     {
       "enabled": false,
       "name": "afp"
+      "shares": 3
     },
     {
       "enabled": false,
-      "name": "iscsi"
+      "name": "iscsi",
+      "shares": 1
     },
     {
       "enabled": false,
@@ -57,7 +59,8 @@
     },
     {
       "enabled": false,
-      "name": "nfs"
+      "name": "nfs",
+      "shares": 1
     },
     {
       "enabled": false,
@@ -65,7 +68,8 @@
     },
     {
       "enabled": false,
-      "name": "smb"
+      "name": "smb",
+      "shares": 5
     }
   ],
   "system": {

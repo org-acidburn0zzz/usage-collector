@@ -119,19 +119,24 @@ type submission_json struct {
 
 // Clear out the JSON structure counters
 func zero_out_stats() {
-	wlock.Lock()
 	TJSON = tracking_json{}
-	wlock.Unlock()
 }
 
 // Get the latest daily file to store data
 func get_daily_filename() {
 	t := time.Now()
-	oldfile := DAILYFILE
-	DAILYFILE = SDIR + "/" + t.Format("20060102") + ".json"
-	if ( oldfile != DAILYFILE ) {
+	newfile := SDIR + "/" + t.Format("20060102") + ".json"
+	if ( newfile != DAILYFILE ) {
+
+	    // Flush previous data to disk
+	    if ( DAILYFILE != "" ) {
+		flush_json_to_disk()
+	    }
 	    // Timestamp has changed, lets reset our in-memory json counters structure
 	    zero_out_stats()
+
+	    // Set new DAILYFILE
+	    DAILYFILE = newfile
 	}
 
 }
@@ -181,6 +186,9 @@ func parse_data(s submission_json) {
 
     // Do this all within a locked mutex
     wlock.Lock()
+
+    // Check if the daily file needs to roll over
+    get_daily_filename()
 
     // Increase total number of systems
     TJSON.SystemCount++

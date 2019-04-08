@@ -4,12 +4,45 @@
     "memory": 8,
     "nics": 2
   },
-  "jails": {
-    "count": 2
-  },
-  "network":{
-	"laggs": 1,
-	"vlans": 2
+  "jails": [
+    {
+      "nat": true,
+      "release": "11.2-RELEASE",
+      "vnet": true
+    }
+  ],
+  "network": {
+    "bridges": [
+      {
+        "members": [
+          "lagg0",
+          "vnet0"
+        ],
+        "mtu": 1500
+      }
+    ],
+    "laggs": [
+      {
+        "members": [
+          "igb0",
+          "igb1"
+        ],
+        "mtu": 1500,
+        "type": "LACP"
+      }
+    ],
+    "phys": [
+      {
+        "mtu": 9000,
+        "name": "igb0"
+      }
+    ],
+    "vlans": [
+      {
+        "mtu": 1500,
+        "parent": "lagg0"
+      }
+    ]
   },
   "platform": "FreeNAS",
   "plugins": [
@@ -26,18 +59,20 @@
     {
       "capacity": 14000,
       "disks": 16,
-      "encryption": false,
+      "encryption": 0,
       "l2arc": false,
       "type": "raidz2",
+      "used": 4000,
       "vdevs": 2,
       "zil": false
     },
     {
       "capacity": 8000,
       "disks": 3,
-      "encryption": false,
+      "encryption": 2,
       "l2arc": false,
       "type": "raidz1",
+      "used": 3000,
       "vdevs": 1,
       "zil": false
     }
@@ -49,13 +84,11 @@
     },
     {
       "enabled": false,
-      "name": "afp",
-      "shares": 3
+      "name": "afp"
     },
     {
       "enabled": true,
-      "name": "iscsi",
-      "shares": 1
+      "name": "iscsi"
     },
     {
       "enabled": false,
@@ -63,17 +96,29 @@
     },
     {
       "enabled": false,
-      "name": "nfs",
-      "shares": 1
-    },
-    {
-      "enabled": false,
-      "name": "replication"
+      "name": "nfs"
     },
     {
       "enabled": true,
-      "name": "smb",
-      "shares": 5
+      "name": "smb"
+    }
+  ],
+  "shares": [
+    {
+      "allowguest": false,
+      "type": "SMB"
+    },
+    {
+      "type": "NFS"
+    },
+    {
+      "type": "AFP"
+    },
+    {
+      "type": "WEBDAV"
+    },
+    {
+      "type": "ISCSI"
     }
   ],
   "system": {
@@ -82,8 +127,13 @@
     "snapshots": 150,
     "zvols": 2
   },
+  "usage_version": 1,
   "version": "11.2-U3",
-  "vms": {
-    "count": 1
-  }
+  "vms": [
+    {
+      "boot": "UEFI",
+      "memory": 1000,
+      "vcpus": 1
+    }
+  ]
 }

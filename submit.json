@@ -8,8 +8,8 @@
     "count": 2
   },
   "network":{
-	"lagg": 1,
-	"vlan": 2
+	"laggs": 1,
+	"vlans": 2
   },
   "platform": "FreeNAS",
   "plugins": [

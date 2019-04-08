@@ -121,6 +121,7 @@ type s_hw struct {
 type s_services struct {
     Name string `json:"name"`
     Enabled bool `json:"enabled"`
+    Shares int `json:"shares"`
 }
 
 type submission_json struct {
@@ -202,14 +203,12 @@ func increment_platform(s submission_json) {
 func increment_services(s submission_json) {
     var found bool
     for j, _ := range s.Services {
-	// Service not enabled, skip
-	if ( ! s.Services[j].Enabled ) {
-		continue
-	}
         found = false
         for i, _ := range TJSON.Services {
 	    if ( TJSON.Services[i].Name == s.Services[j].Name) {
-                TJSON.Services[i].Count++
+	        if ( ! s.Services[j].Enabled ) {
+                    TJSON.Services[i].Count++
+		}
 		found = true
                 break
              }
@@ -220,8 +219,37 @@ func increment_services(s submission_json) {
 	 }
 	 var newService t_service_count
          newService.Name = s.Services[j].Name
-         newService.Count = 1
+	 if ( ! s.Services[j].Enabled ) {
+             newService.Count = 0
+         } else {
+             newService.Count = 1
+	 }
          TJSON.Services = append(TJSON.Services, newService)
+    }
+}
+
+func increment_service_shares(s submission_json) {
+    var found bool
+    for j, _ := range s.Services {
+        found = false
+        for i, _ := range TJSON.ServiceShares {
+            //log.Println(s.Services[j].Name + " Shares:" + strconv.Itoa(s.Services[j].Shares))
+	    if ( TJSON.ServiceShares[i].Name == s.Services[j].Name &&
+	        TJSON.ServiceShares[i].Shares == s.Services[j].Shares ) {
+                TJSON.ServiceShares[i].Count++
+		found = true
+                break
+             }
+         }
+	 // Found and incremented this particular service
+	 if ( found ) {
+		 continue
+	 }
+	 var newService t_service_share_count
+         newService.Name = s.Services[j].Name
+         newService.Shares = s.Services[j].Shares
+         newService.Count = 1
+         TJSON.ServiceShares = append(TJSON.ServiceShares, newService)
     }
 }
 
@@ -239,12 +267,12 @@ func parse_data(s submission_json) {
     // Update our in-memory counters
     increment_platform(s)
     increment_services(s)
+    increment_service_shares(s)
 
     // TODO increment other submitted counters
     log.Println(s.Plugins)
     log.Println(s.Pools)
     log.Println(s.Hardware)
-    log.Println(s.Services)
 
     // Every 5 updates, we update the JSON file on disk
     if ( WCOUNTER >= 5 ) {

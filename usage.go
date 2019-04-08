@@ -35,6 +35,17 @@ type t_plat_count struct {
     Count int
 }
 
+type t_service_count struct {
+    Name string
+    Count int
+}
+
+type t_service_share_count struct {
+    Name string
+    Shares int
+    Count int
+}
+
 type t_plugin_count struct {
     Name string
     Version string
@@ -62,17 +73,23 @@ type tracking_json struct {
     // Store Platform Version number count
     Platforms []t_plat_count `json:"platforms"`
 
+    // Store enabled services count
+    Services []t_service_count `json:"services"`
+
+    // Store service share counts
+    ServiceShares []t_service_share_count `json:"serviceshares"`
+
     // Store plugin version/number counters
     Plugins []t_plugin_count `json:"plugins"`
 
     // Store vdev counters for pools
-    Poolvdevs []t_pool_vdev_count `json:"poolvdevs"`
+    PoolVDevs []t_pool_vdev_count `json:"poolvdevs"`
 
     // Store counter of pool disk numbers
-    Pooldisks []t_pool_disk_count `json:"pooldisks"`
+    PoolDisks []t_pool_disk_count `json:"pooldisks"`
 
     // Store the total capacity of globally managed storage
-    Poolcapacity []t_pool_capacity_count `json:"poolcapacity"`
+    PoolCapacity []t_pool_capacity_count `json:"poolcapacity"`
 
     // Total number of system submissions
     SystemCount int
@@ -102,8 +119,8 @@ type s_hw struct {
 }
 
 type s_services struct {
-    Name string
-    Enabled bool
+    Name string `json:"name"`
+    Enabled bool `json:"enabled"`
 }
 
 type submission_json struct {
@@ -163,6 +180,11 @@ func load_daily_file() {
     }
 }
 
+func flush_json_to_disk() {
+    file, _ := json.MarshalIndent(TJSON, "", " ")
+    _ = ioutil.WriteFile(DAILYFILE, file, 0644)
+}
+
 func increment_platform(s submission_json) {
     for i, _ := range TJSON.Platforms {
 	if ( TJSON.Platforms[i].Name == s.Platform && TJSON.Platforms[i].Version == s.Version ) {
@@ -177,9 +199,30 @@ func increment_platform(s submission_json) {
     TJSON.Platforms = append(TJSON.Platforms, newPlat)
 }
 
-func flush_json_to_disk() {
-    file, _ := json.MarshalIndent(TJSON, "", " ")
-    _ = ioutil.WriteFile(DAILYFILE, file, 0644)
+func increment_services(s submission_json) {
+    var found bool
+    for j, _ := range s.Services {
+	// Service not enabled, skip
+	if ( ! s.Services[j].Enabled ) {
+		continue
+	}
+        found = false
+        for i, _ := range TJSON.Services {
+	    if ( TJSON.Services[i].Name == s.Services[j].Name) {
+                TJSON.Services[i].Count++
+		found = true
+                break
+             }
+         }
+	 // Found and incremented this particular service
+	 if ( found ) {
+		 continue
+	 }
+	 var newService t_service_count
+         newService.Name = s.Services[j].Name
+         newService.Count = 1
+         TJSON.Services = append(TJSON.Services, newService)
+    }
 }
 
 func parse_data(s submission_json) {
@@ -195,6 +238,7 @@ func parse_data(s submission_json) {
 
     // Update our in-memory counters
     increment_platform(s)
+    increment_services(s)
 
     // TODO increment other submitted counters
     log.Println(s.Plugins)

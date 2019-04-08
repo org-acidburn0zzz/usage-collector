@@ -53,7 +53,7 @@
       "shares": 3
     },
     {
-      "enabled": false,
+      "enabled": true,
       "name": "iscsi",
       "shares": 1
     },
@@ -71,7 +71,7 @@
       "name": "replication"
     },
     {
-      "enabled": false,
+      "enabled": true,
       "name": "smb",
       "shares": 5
     }

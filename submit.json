@@ -1,57 +1,81 @@
 {
-	"platform":"FreeNAS",
-	"version":"11.2-U3",
-	"services":[
-		{
-			"name":"ad",
-			"enabled":false
-		},
-		{
-			"name":"afp",
-			"enabled":false
-		},
-		{
-			"name":"iscsi",
-			"enabled":false
-		},
-		{
-			"name":"ldap",
-			"enabled":false
-		},
-		{
-			"name":"nfs",
-			"enabled":false
-		},
-		{
-			"name":"replication",
-			"enabled":false
-		},
-		{
-			"name":"smb",
-			"enabled":false
-		}
-	],
-	"plugins":[
-		{
-			"name":"plexmediaserver",
-			"version":"1.4.0.99"
-		},
-		{
-			"name":"radarr",
-			"version":"1.1.0"
-		}
-	],
-	"pools":[
-		{
-			"type":"raidz2",
-			"vdevs":2,
-			"disks":16,
-			"capacity":14000
-		}
-	],
-	"hardware":{
-		"cpus":8,
-		"memory":8,
-		"nics":2
-	}
+  "hardware": {
+    "cpus": 8,
+    "memory": 8,
+    "nics": 2
+  },
+  "jails": {
+    "count": 2
+  },
+  "platform": "FreeNAS",
+  "plugins": [
+    {
+      "name": "plexmediaserver",
+      "version": "1.4.0.99"
+    },
+    {
+      "name": "radarr",
+      "version": "1.1.0"
+    }
+  ],
+  "pools": [
+    {
+      "capacity": 14000,
+      "disks": 16,
+      "encryption": false,
+      "l2arc": false,
+      "type": "raidz2",
+      "vdevs": 2,
+      "zil": false
+    },
+    {
+      "capacity": 8000,
+      "disks": 3,
+      "encryption": false,
+      "l2arc": false,
+      "type": "raidz1",
+      "vdevs": 1,
+      "zil": false
+    }
+  ],
+  "services": [
+    {
+      "enabled": false,
+      "name": "ad"
+    },
+    {
+      "enabled": false,
+      "name": "afp"
+    },
+    {
+      "enabled": false,
+      "name": "iscsi"
+    },
+    {
+      "enabled": false,
+      "name": "ldap"
+    },
+    {
+      "enabled": false,
+      "name": "nfs"
+    },
+    {
+      "enabled": false,
+      "name": "replication"
+    },
+    {
+      "enabled": false,
+      "name": "smb"
+    }
+  ],
+  "system": {
+    "datasets": 10,
+    "localusers": 5,
+    "snapshots": 150,
+    "zvols": 2
+  },
+  "version": "11.2-U3",
+  "vms": {
+    "count": 1
+  }
 }

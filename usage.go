@@ -73,6 +73,9 @@ type tracking_json struct {
 
     // Store the total capacity of globally managed storage
     Poolcapacity []t_pool_capacity_count `json:"poolcapacity"`
+
+    // Total number of system submissions
+    SystemCount int
 }
 
 var TJSON tracking_json
@@ -178,6 +181,9 @@ func parse_data(s submission_json) {
 
     // Do this all within a locked mutex
     wlock.Lock()
+
+    // Increase total number of systems
+    TJSON.SystemCount++
 
     // Update our in-memory counters
     increment_platform(s)

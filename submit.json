@@ -7,6 +7,10 @@
   "jails": {
     "count": 2
   },
+  "network":{
+	"lagg": 1,
+	"vlan": 2
+  },
   "platform": "FreeNAS",
   "plugins": [
     {
@@ -45,7 +49,7 @@
     },
     {
       "enabled": false,
-      "name": "afp"
+      "name": "afp",
       "shares": 3
     },
     {

@@ -42,7 +42,6 @@ type t_service_count struct {
 
 type t_service_share_count struct {
     Name string
-    Shares int
     Count int
 }
 
@@ -121,7 +120,11 @@ type s_hw struct {
 type s_services struct {
     Name string `json:"name"`
     Enabled bool `json:"enabled"`
-    Shares int `json:"shares"`
+}
+
+type s_shares struct {
+    Type string `json:"type"`
+    AllowGuest bool `json:"allowguest"`
 }
 
 type submission_json struct {
@@ -131,6 +134,7 @@ type submission_json struct {
     Pools []s_plugins `json:"pools"`
     Hardware s_hw `json:"hardware"`
     Services []s_services `json:"services"`
+    Shares []s_shares `json:"shares"`
 }
 
 //////////////////////////////////////////////////////////
@@ -206,15 +210,15 @@ func increment_services(s submission_json) {
         found = false
         for i, _ := range TJSON.Services {
 	    if ( TJSON.Services[i].Name == s.Services[j].Name) {
-	        if ( ! s.Services[j].Enabled ) {
+		found = true
+	        if ( s.Services[j].Enabled ) {
                     TJSON.Services[i].Count++
 		}
-		found = true
                 break
              }
          }
 	 // Found and incremented this particular service
-	 if ( found ) {
+	 if ( found || ! s.Services[j].Enabled ) {
 		 continue
 	 }
 	 var newService t_service_count
@@ -230,12 +234,11 @@ func increment_services(s submission_json) {
 
 func increment_service_shares(s submission_json) {
     var found bool
-    for j, _ := range s.Services {
+    for j, _ := range s.Shares {
         found = false
         for i, _ := range TJSON.ServiceShares {
             //log.Println(s.Services[j].Name + " Shares:" + strconv.Itoa(s.Services[j].Shares))
-	    if ( TJSON.ServiceShares[i].Name == s.Services[j].Name &&
-	        TJSON.ServiceShares[i].Shares == s.Services[j].Shares ) {
+	    if ( TJSON.ServiceShares[i].Name == s.Shares[j].Type ) {
                 TJSON.ServiceShares[i].Count++
 		found = true
                 break
@@ -246,8 +249,7 @@ func increment_service_shares(s submission_json) {
 		 continue
 	 }
 	 var newService t_service_share_count
-         newService.Name = s.Services[j].Name
-         newService.Shares = s.Services[j].Shares
+         newService.Name = s.Shares[j].Type
          newService.Count = 1
          TJSON.ServiceShares = append(TJSON.ServiceShares, newService)
     }

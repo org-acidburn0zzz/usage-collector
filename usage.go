@@ -121,7 +121,37 @@ type t_networking_count struct {
     Vlans []t_net_vlans_count `json:"vlans"`
 }
 
+type t_sys_users_count struct {
+    Localusers uint
+    Count uint
+}
+
+type t_sys_datasets_count struct {
+    Datasets uint
+    Count uint
+}
+
+type t_sys_snapshots_count struct {
+    Snapshots uint
+    Count uint
+}
+
+type t_sys_zvols_count struct {
+    Zvols uint
+    Count uint
+}
+
+type t_sys struct {
+    Localusers []t_sys_users_count `json:"localusers"`
+    Datasets []t_sys_datasets_count `json:"datasets"`
+    Snapshots []t_sys_snapshots_count `json:"snapshots"`
+    Zvols []t_sys_zvols_count `json:"zvols"`
+}
+
 type tracking_json struct {
+    // System Tracker
+    System t_sys `json:"system"`
+
     // Store networking counters
     Network t_networking_count `json:"networking"`
 
@@ -249,6 +279,13 @@ type s_network struct {
     Vlans []s_network_vlans `json:"vlans"`
 }
 
+type s_system struct {
+    Datasets uint `json:"datasets"`
+    Localusers uint `json:"localusers"`
+    Snapshots uint `json:"snapshots"`
+    Zvols uint `json:"zvols"`
+}
+
 type submission_json struct {
     Platform string
     Version string
@@ -259,6 +296,7 @@ type submission_json struct {
     Hardware s_hw `json:"hardware"`
     Services []s_services `json:"services"`
     Shares []s_shares `json:"shares"`
+    System s_system `json:"system"`
 }
 
 //////////////////////////////////////////////////////////
@@ -301,6 +339,11 @@ func parse_data(s submission_json) {
     increment_net_laggs(s)
     increment_net_phys(s)
 
+    increment_sys_users(s)
+    increment_sys_zvols(s)
+    increment_sys_snapshots(s)
+    increment_sys_datasets(s)
+
     // Every 5 updates, we update the JSON file on disk
     if ( WCOUNTER >= 5 ) {
 	log.Println("Flushing to disk")
@@ -314,6 +357,78 @@ func parse_data(s submission_json) {
 
     // Unlock the mutex now
     wlock.Unlock()
+}
+
+func increment_sys_snapshots(s submission_json) {
+    var snapcount uint
+    // Snapshots vary wildly, lets get some rough approx
+    if ( s.System.Snapshots > 10000 ) {
+        snapcount = 10000
+    } else if (s.System.Snapshots > 5000 ) {
+        snapcount = 5000
+    } else if (s.System.Snapshots > 1000 ) {
+        snapcount = 5000
+    } else if (s.System.Snapshots > 500 ) {
+        snapcount = 500
+    } else if (s.System.Snapshots > 100 ) {
+        snapcount = 100
+    } else if (s.System.Snapshots > 50 ) {
+        snapcount = 50
+    } else if (s.System.Snapshots > 25 ) {
+        snapcount = 25
+    } else {
+        snapcount = 10
+    }
+
+    for i, _ := range TJSON.System.Snapshots {
+	if ( TJSON.System.Snapshots[i].Snapshots == snapcount) {
+		TJSON.System.Snapshots[i].Count++
+		return
+	}
+    }
+    var newEntry t_sys_snapshots_count
+    newEntry.Snapshots = snapcount
+    newEntry.Count = 1
+    TJSON.System.Snapshots = append(TJSON.System.Snapshots, newEntry)
+}
+
+func increment_sys_zvols(s submission_json) {
+    for i, _ := range TJSON.System.Zvols {
+	if ( TJSON.System.Zvols[i].Zvols == s.System.Zvols) {
+		TJSON.System.Zvols[i].Count++
+		return
+	}
+    }
+    var newEntry t_sys_zvols_count
+    newEntry.Zvols = s.System.Zvols
+    newEntry.Count = 1
+    TJSON.System.Zvols = append(TJSON.System.Zvols, newEntry)
+}
+
+func increment_sys_datasets(s submission_json) {
+    for i, _ := range TJSON.System.Datasets {
+	if ( TJSON.System.Datasets[i].Datasets == s.System.Datasets) {
+		TJSON.System.Datasets[i].Count++
+		return
+	}
+    }
+    var newEntry t_sys_datasets_count
+    newEntry.Datasets = s.System.Datasets
+    newEntry.Count = 1
+    TJSON.System.Datasets = append(TJSON.System.Datasets, newEntry)
+}
+
+func increment_sys_users(s submission_json) {
+    for i, _ := range TJSON.System.Localusers {
+	if ( TJSON.System.Localusers[i].Localusers == s.System.Localusers) {
+		TJSON.System.Localusers[i].Count++
+		return
+	}
+    }
+    var newEntry t_sys_users_count
+    newEntry.Localusers = s.System.Localusers
+    newEntry.Count = 1
+    TJSON.System.Localusers = append(TJSON.System.Localusers, newEntry)
 }
 
 func increment_plugins(s submission_json) {

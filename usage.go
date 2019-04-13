@@ -1013,7 +1013,8 @@ func submit(rw http.ResponseWriter, req *http.Request) {
     }
 
     // Lookup Geo IP
-    ip,_,_ := net.SplitHostPort(req.RemoteAddr)
+    //ip,_,_ := net.SplitHostPort(req.RemoteAddr)
+    ip := req.Header.Get("X-Forwarded-For")
     isocode := get_location(ip)
 
     // Do things with the data

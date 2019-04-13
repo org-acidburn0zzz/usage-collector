@@ -192,6 +192,53 @@ type submission_json struct {
 }
 
 //////////////////////////////////////////////////////////
+// Parsing and counting data routines below
+//////////////////////////////////////////////////////////
+
+func parse_data(s submission_json) {
+
+    // Do this all within a locked mutex
+    wlock.Lock()
+
+    // Check if the daily file needs to roll over
+    get_daily_filename()
+
+    // Increase total number of systems
+    TJSON.SystemCount++
+
+    // Update our in-memory counters
+    increment_platform(s)
+    increment_services(s)
+    increment_service_shares(s)
+    increment_pool_vdev(s)
+    increment_pool_disks(s)
+    increment_pool_types(s)
+    increment_pool_encryption(s)
+    increment_pool_zil(s)
+    increment_pool_l2arc(s)
+    increment_pool_capacity(s)
+    increment_pool_used(s)
+
+    increment_cpus(s)
+    increment_memory(s)
+    increment_nics(s)
+
+    increment_jails(s)
+
+    // Every 5 updates, we update the JSON file on disk
+    if ( WCOUNTER >= 5 ) {
+	log.Println("Flushing to disk")
+        flush_json_to_disk()
+	WCOUNTER=0
+    } else {
+        WCOUNTER++
+    }
+
+    //log.Println(TJSON)
+
+    // Unlock the mutex now
+    wlock.Unlock()
+}
 
 func increment_jails(s submission_json) {
     var found bool
@@ -232,10 +279,10 @@ func increment_jails(s submission_json) {
 func increment_nics(s submission_json) {
     var found bool
     if ( TJSON.Nics == nil ) {
-        var newNics t_hw_nics_count
-        newNics.Nics = s.Hardware.Nics
-        newNics.Count = 1
-        TJSON.Nics = append(TJSON.Nics, newNics)
+        var newEntry t_hw_nics_count
+        newEntry.Nics = s.Hardware.Nics
+        newEntry.Count = 1
+        TJSON.Nics = append(TJSON.Nics, newEntry)
 	return
     }
     for i, _ := range TJSON.Nics {
@@ -250,20 +297,20 @@ func increment_nics(s submission_json) {
              continue
         }
 
-        var newNics t_hw_nics_count
-        newNics.Nics = s.Hardware.Nics
-        newNics.Count = 1
-        TJSON.Nics = append(TJSON.Nics, newNics)
+        var newEntry t_hw_nics_count
+        newEntry.Nics = s.Hardware.Nics
+        newEntry.Count = 1
+        TJSON.Nics = append(TJSON.Nics, newEntry)
     }
 }
 
 func increment_memory(s submission_json) {
     var found bool
     if ( TJSON.Memory == nil ) {
-        var newMemory t_hw_memory_count
-        newMemory.Memory = s.Hardware.Memory
-        newMemory.Count = 1
-        TJSON.Memory = append(TJSON.Memory, newMemory)
+        var newEntry t_hw_memory_count
+        newEntry.Memory = s.Hardware.Memory
+        newEntry.Count = 1
+        TJSON.Memory = append(TJSON.Memory, newEntry)
 	return
     }
     for i, _ := range TJSON.Memory {
@@ -278,20 +325,20 @@ func increment_memory(s submission_json) {
              continue
         }
 
-        var newMemory t_hw_memory_count
-        newMemory.Memory = s.Hardware.Memory
-        newMemory.Count = 1
-        TJSON.Memory = append(TJSON.Memory, newMemory)
+        var newEntry t_hw_memory_count
+        newEntry.Memory = s.Hardware.Memory
+        newEntry.Count = 1
+        TJSON.Memory = append(TJSON.Memory, newEntry)
     }
 }
 
 func increment_cpus(s submission_json) {
     var found bool
     if ( TJSON.CPUs == nil ) {
-        var newCPUs t_hw_cpus_count
-        newCPUs.CPUs = s.Hardware.CPUs
-        newCPUs.Count = 1
-        TJSON.CPUs = append(TJSON.CPUs, newCPUs)
+        var newEntry t_hw_cpus_count
+        newEntry.CPUs = s.Hardware.CPUs
+        newEntry.Count = 1
+        TJSON.CPUs = append(TJSON.CPUs, newEntry)
 	return
     }
     for i, _ := range TJSON.CPUs {
@@ -306,10 +353,10 @@ func increment_cpus(s submission_json) {
              continue
         }
 
-        var newCPUs t_hw_cpus_count
-        newCPUs.CPUs = s.Hardware.CPUs
-        newCPUs.Count = 1
-        TJSON.CPUs = append(TJSON.CPUs, newCPUs)
+        var newEntry t_hw_cpus_count
+        newEntry.CPUs = s.Hardware.CPUs
+        newEntry.Count = 1
+        TJSON.CPUs = append(TJSON.CPUs, newEntry)
     }
 }
 
@@ -369,10 +416,10 @@ func increment_pool_types(s submission_json) {
 		continue
         }
 
-        var newType t_pool_type_count
-        newType.Type= s.Pools[j].Type
-        newType.Count = 1
-        TJSON.PoolTypes = append(TJSON.PoolTypes, newType)
+        var newEntry t_pool_type_count
+        newEntry.Type= s.Pools[j].Type
+        newEntry.Count = 1
+        TJSON.PoolTypes = append(TJSON.PoolTypes, newEntry)
     }
 }
 
@@ -392,10 +439,10 @@ func increment_pool_disks(s submission_json) {
 		continue
         }
 
-        var newDisk t_pool_disk_count
-        newDisk.Disks= s.Pools[j].Disks
-        newDisk.Count = 1
-        TJSON.PoolDisks = append(TJSON.PoolDisks, newDisk)
+        var newEntry t_pool_disk_count
+        newEntry.Disks= s.Pools[j].Disks
+        newEntry.Count = 1
+        TJSON.PoolDisks = append(TJSON.PoolDisks, newEntry)
     }
 }
 
@@ -415,10 +462,10 @@ func increment_pool_vdev(s submission_json) {
 		continue
         }
 
-        var newVdev t_pool_vdev_count
-        newVdev.Vdevs= s.Pools[j].Vdevs
-        newVdev.Count = 1
-        TJSON.PoolVdevs = append(TJSON.PoolVdevs, newVdev)
+        var newEntry t_pool_vdev_count
+        newEntry.Vdevs= s.Pools[j].Vdevs
+        newEntry.Count = 1
+        TJSON.PoolVdevs = append(TJSON.PoolVdevs, newEntry)
     }
 }
 
@@ -429,11 +476,11 @@ func increment_platform(s submission_json) {
 		return
 	}
     }
-    var newPlat t_plat_count
-    newPlat.Name = s.Platform
-    newPlat.Version = s.Version
-    newPlat.Count = 1
-    TJSON.Platforms = append(TJSON.Platforms, newPlat)
+    var newEntry t_plat_count
+    newEntry.Name = s.Platform
+    newEntry.Version = s.Version
+    newEntry.Count = 1
+    TJSON.Platforms = append(TJSON.Platforms, newEntry)
 }
 
 func increment_services(s submission_json) {
@@ -453,14 +500,14 @@ func increment_services(s submission_json) {
 	 if ( found || ! s.Services[j].Enabled ) {
 		 continue
 	 }
-	 var newService t_service_count
-         newService.Name = s.Services[j].Name
+	 var newEntry t_service_count
+         newEntry.Name = s.Services[j].Name
 	 if ( ! s.Services[j].Enabled ) {
-             newService.Count = 0
+             newEntry.Count = 0
          } else {
-             newService.Count = 1
+             newEntry.Count = 1
 	 }
-         TJSON.Services = append(TJSON.Services, newService)
+         TJSON.Services = append(TJSON.Services, newEntry)
     }
 }
 
@@ -480,59 +527,11 @@ func increment_service_shares(s submission_json) {
 	 if ( found ) {
 		 continue
 	 }
-	 var newService t_service_share_count
-         newService.Name = s.Shares[j].Type
-         newService.Count = 1
-         TJSON.ServiceShares = append(TJSON.ServiceShares, newService)
+	 var newEntry t_service_share_count
+         newEntry.Name = s.Shares[j].Type
+         newEntry.Count = 1
+         TJSON.ServiceShares = append(TJSON.ServiceShares, newEntry)
     }
-}
-
-func parse_data(s submission_json) {
-
-    // Do this all within a locked mutex
-    wlock.Lock()
-
-    // Check if the daily file needs to roll over
-    get_daily_filename()
-
-    // Increase total number of systems
-    TJSON.SystemCount++
-
-    // Update our in-memory counters
-    increment_platform(s)
-    increment_services(s)
-    increment_service_shares(s)
-    increment_pool_vdev(s)
-    increment_pool_disks(s)
-    increment_pool_types(s)
-    increment_pool_encryption(s)
-    increment_pool_zil(s)
-    increment_pool_l2arc(s)
-    increment_pool_capacity(s)
-    increment_pool_used(s)
-
-    increment_cpus(s)
-    increment_memory(s)
-    increment_nics(s)
-
-    // TODO increment other submitted counters
-    log.Println(s.Plugins)
-    log.Println(s.Pools)
-    log.Println(s.Hardware)
-
-    // Every 5 updates, we update the JSON file on disk
-    if ( WCOUNTER >= 5 ) {
-	log.Println("Flushing to disk")
-        flush_json_to_disk()
-	WCOUNTER=0
-    } else {
-        WCOUNTER++
-    }
-
-    //log.Println(TJSON)
-
-    // Unlock the mutex now
-    wlock.Unlock()
 }
 
 // Getting a new submission

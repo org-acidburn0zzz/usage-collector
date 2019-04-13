@@ -217,6 +217,29 @@ func flush_json_to_disk() {
     _ = ioutil.WriteFile(DAILYFILE, file, 0644)
 }
 
+func increment_pool_disks(s submission_json) {
+    var found bool
+    for j, _ := range s.Pools {
+	found = false
+        for i, _ := range TJSON.PoolDisks {
+	    if ( TJSON.PoolDisks[i].Disks == s.Pools[j].Disks ) {
+                TJSON.PoolDisks[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newDisk t_pool_disk_count
+        newDisk.Disks= s.Pools[j].Disks
+        newDisk.Count = 1
+        TJSON.PoolDisks = append(TJSON.PoolDisks, newDisk)
+    }
+}
+
 func increment_pool_vdev(s submission_json) {
     var found bool
     for j, _ := range s.Pools {
@@ -321,6 +344,7 @@ func parse_data(s submission_json) {
     increment_services(s)
     increment_service_shares(s)
     increment_pool_vdev(s)
+    increment_pool_disks(s)
 
     // TODO increment other submitted counters
     log.Println(s.Plugins)

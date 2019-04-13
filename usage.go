@@ -95,7 +95,7 @@ type t_net_bridges_members_count struct {
     Count uint
 }
 
-type t_net_lagg_members_count struct {
+type t_net_laggs_members_count struct {
     Members []string
     Type string
     Mtu uint
@@ -116,7 +116,7 @@ type t_net_vlans_count struct {
 
 type t_networking_count struct {
     Bridges []t_net_bridges_members_count `json:"bridges"`
-    Laggs []t_net_lagg_members_count `json:"laggs"`
+    Laggs []t_net_laggs_members_count `json:"laggs"`
     Phys []t_net_phys_count `json:"phys"`
     Vlans []t_net_vlans_count `json:"vlans"`
 }
@@ -295,6 +295,9 @@ func parse_data(s submission_json) {
     increment_jails(s)
 
     increment_net_bridges(s)
+    increment_net_vlans(s)
+    increment_net_laggs(s)
+    increment_net_phys(s)
 
     // Every 5 updates, we update the JSON file on disk
     if ( WCOUNTER >= 5 ) {
@@ -309,6 +312,79 @@ func parse_data(s submission_json) {
 
     // Unlock the mutex now
     wlock.Unlock()
+}
+
+func increment_net_vlans(s submission_json) {
+    var found bool
+    for j, _ := range s.Network.Vlans {
+	found = false
+        for i, _ := range TJSON.Network.Vlans {
+	    if ( s.Network.Vlans[j].Mtu == TJSON.Network.Vlans[i].Mtu ) && ( s.Network.Vlans[j].Parent == TJSON.Network.Vlans[i].Parent ) {
+                TJSON.Network.Vlans[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_net_vlans_count
+        newEntry.Mtu = s.Network.Vlans[j].Mtu
+        newEntry.Parent = s.Network.Vlans[j].Parent
+        newEntry.Count = 1
+        TJSON.Network.Vlans = append(TJSON.Network.Vlans, newEntry)
+    }
+}
+
+func increment_net_phys(s submission_json) {
+    var found bool
+    for j, _ := range s.Network.Phys {
+	found = false
+        for i, _ := range TJSON.Network.Phys {
+	    if ( s.Network.Phys[j].Mtu == TJSON.Network.Phys[i].Mtu ) && ( s.Network.Phys[j].Name == TJSON.Network.Phys[i].Name ) {
+                TJSON.Network.Phys[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_net_phys_count
+        newEntry.Mtu = s.Network.Phys[j].Mtu
+        newEntry.Name = s.Network.Phys[j].Name
+        newEntry.Count = 1
+        TJSON.Network.Phys = append(TJSON.Network.Phys, newEntry)
+    }
+}
+
+func increment_net_laggs(s submission_json) {
+    var found bool
+    for j, _ := range s.Network.Laggs {
+	found = false
+        for i, _ := range TJSON.Network.Laggs {
+	    if ( reflect.DeepEqual( TJSON.Network.Laggs[i].Members, s.Network.Laggs[j].Members ) && (s.Network.Laggs[j].Mtu == TJSON.Network.Laggs[i].Mtu ) && ( s.Network.Laggs[j].Type == TJSON.Network.Laggs[i].Type ) ) {
+                TJSON.Network.Laggs[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_net_laggs_members_count
+        newEntry.Members = s.Network.Laggs[j].Members
+        newEntry.Mtu = s.Network.Laggs[j].Mtu
+        newEntry.Type = s.Network.Laggs[j].Type
+        newEntry.Count = 1
+        TJSON.Network.Laggs = append(TJSON.Network.Laggs, newEntry)
+    }
 }
 
 func increment_net_bridges(s submission_json) {

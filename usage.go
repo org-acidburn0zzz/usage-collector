@@ -393,9 +393,9 @@ func parse_data(s submission_json, isocode string) {
     increment_sys_snapshots(s)
     increment_sys_datasets(s)
 
-    // Every 5 updates, we update the JSON file on disk
-    if ( WCOUNTER >= 5 ) {
-	log.Println("Flushing to disk")
+    // Every 20 updates, we update the JSON file on disk
+    if ( WCOUNTER >= 20 ) {
+	//log.Println("Flushing to disk")
         flush_json_to_disk()
 	WCOUNTER=0
     } else {

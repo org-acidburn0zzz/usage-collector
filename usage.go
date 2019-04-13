@@ -181,6 +181,7 @@ var TJSON tracking_json
 type s_plugins struct {
     Name string
     Version string
+    Count uint
 }
 
 type s_pools struct {
@@ -293,6 +294,7 @@ func parse_data(s submission_json) {
     increment_nics(s)
 
     increment_jails(s)
+    increment_plugins(s)
 
     increment_net_bridges(s)
     increment_net_vlans(s)
@@ -312,6 +314,30 @@ func parse_data(s submission_json) {
 
     // Unlock the mutex now
     wlock.Unlock()
+}
+
+func increment_plugins(s submission_json) {
+    var found bool
+    for j, _ := range s.Plugins {
+	found = false
+        for i, _ := range TJSON.Plugins {
+	    if ( TJSON.Plugins[i].Name == s.Plugins[j].Name && TJSON.Plugins[i].Version == s.Plugins[j].Version ) {
+                TJSON.Plugins[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_plugin_count
+        newEntry.Name = s.Plugins[j].Name
+        newEntry.Version = s.Plugins[j].Version
+        newEntry.Count = 1
+        TJSON.Plugins = append(TJSON.Plugins, newEntry)
+    }
 }
 
 func increment_net_vlans(s submission_json) {

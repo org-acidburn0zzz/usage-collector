@@ -7,6 +7,7 @@ import (
     "net/http"
     "os"
     "os/signal"
+    "reflect"
     "sync"
     "syscall"
     "time"
@@ -88,7 +89,42 @@ type t_jails_count struct {
     Count uint `json:"count"`
 }
 
+type t_net_bridges_members_count struct {
+    Members []string
+    Mtu uint
+    Count uint
+}
+
+type t_net_lagg_members_count struct {
+    Members []string
+    Type string
+    Mtu uint
+    Count uint
+}
+
+type t_net_phys_count struct {
+    Name string
+    Mtu uint
+    Count uint
+}
+
+type t_net_vlans_count struct {
+    Parent string
+    Mtu uint
+    Count uint
+}
+
+type t_networking_count struct {
+    Bridges []t_net_bridges_members_count `json:"bridges"`
+    Laggs []t_net_lagg_members_count `json:"laggs"`
+    Phys []t_net_phys_count `json:"phys"`
+    Vlans []t_net_vlans_count `json:"vlans"`
+}
+
 type tracking_json struct {
+    // Store networking counters
+    Network t_networking_count `json:"networking"`
+
     // Store HW counters
     CPUs []t_hw_cpus_count `json:"cpus"`
     Memory []t_hw_memory_count `json:"memory"`
@@ -180,9 +216,42 @@ type s_jails struct {
     Vnet bool `json:"vnet"`
 }
 
+type s_network_bridges struct {
+    Count uint `json:"Count"`
+    Members []string `json:"members"`
+    Mtu uint `json:"mtu"`
+}
+
+type s_network_laggs struct {
+    Count uint `json:"Count"`
+    Members []string `json:"members"`
+    Mtu uint `json:"mtu"`
+    Type string `json:"type"`
+}
+
+type s_network_phys struct {
+    Count uint `json:"Count"`
+    Mtu uint `json:"mtu"`
+    Name string `json:"name"`
+}
+
+type s_network_vlans struct {
+    Count uint `json:"Count"`
+    Mtu uint `json:"mtu"`
+    Parent string `json:"parent"`
+}
+
+type s_network struct {
+    Bridges []s_network_bridges `json:"bridges"`
+    Laggs []s_network_laggs `json:"laggs"`
+    Phys []s_network_phys `json:"phys"`
+    Vlans []s_network_vlans `json:"vlans"`
+}
+
 type submission_json struct {
     Platform string
     Version string
+    Network s_network `json:"network"`
     Jails []s_jails `json:"jails"`
     Plugins []s_plugins `json:"plugins"`
     Pools []s_pools `json:"pools"`
@@ -225,6 +294,8 @@ func parse_data(s submission_json) {
 
     increment_jails(s)
 
+    increment_net_bridges(s)
+
     // Every 5 updates, we update the JSON file on disk
     if ( WCOUNTER >= 5 ) {
 	log.Println("Flushing to disk")
@@ -238,6 +309,30 @@ func parse_data(s submission_json) {
 
     // Unlock the mutex now
     wlock.Unlock()
+}
+
+func increment_net_bridges(s submission_json) {
+    var found bool
+    for j, _ := range s.Network.Bridges {
+	found = false
+        for i, _ := range TJSON.Network.Bridges {
+	    if ( reflect.DeepEqual(TJSON.Network.Bridges[i].Members, s.Network.Bridges[j].Members) && s.Network.Bridges[j].Mtu == TJSON.Network.Bridges[i].Mtu  ) {
+                TJSON.Network.Bridges[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_net_bridges_members_count
+        newEntry.Members = s.Network.Bridges[j].Members
+        newEntry.Mtu = s.Network.Bridges[j].Mtu
+        newEntry.Count = 1
+        TJSON.Network.Bridges = append(TJSON.Network.Bridges, newEntry)
+    }
 }
 
 func increment_jails(s submission_json) {

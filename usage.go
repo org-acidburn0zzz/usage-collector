@@ -52,14 +52,29 @@ type t_plugin_count struct {
 }
 
 type t_pool_vdev_count struct {
-    Type string
     Vdevs int
     Count int
 }
 
 type t_pool_disk_count struct {
-    Type string
     Disks int
+    Count int
+}
+
+type t_pool_type_count struct {
+    Type string
+    Count int
+}
+
+type t_pool_enc_count struct {
+    Count int
+}
+
+type t_pool_l2arc_count struct {
+    Count int
+}
+
+type t_pool_zil_count struct {
     Count int
 }
 
@@ -82,13 +97,25 @@ type tracking_json struct {
     Plugins []t_plugin_count `json:"plugins"`
 
     // Store vdev counters for pools
-    PoolVDevs []t_pool_vdev_count `json:"poolvdevs"`
+    PoolVdevs []t_pool_vdev_count `json:"poolvdevs"`
 
     // Store counter of pool disk numbers
     PoolDisks []t_pool_disk_count `json:"pooldisks"`
 
     // Store the total capacity of globally managed storage
     PoolCapacity []t_pool_capacity_count `json:"poolcapacity"`
+
+    // Counter for types of pools
+    PoolType []t_pool_type_count `json:"pooltype"`
+
+    // Counter for number of pools with encryption
+    PoolEnc []t_pool_enc_count `json:"poolenc"`
+
+    // Counter for number of pools with dedicated l2arc
+    PoolL2Arc []t_pool_l2arc_count `json:"pooll2arc"`
+
+    // Counter for number of pools with dedicated zil
+    PoolL2Zil []t_pool_zil_count `json:"poolzil"`
 
     // Total number of system submissions
     SystemCount int
@@ -131,7 +158,7 @@ type submission_json struct {
     Platform string
     Version string
     Plugins []s_plugins `json:"plugins"`
-    Pools []s_plugins `json:"pools"`
+    Pools []s_pools `json:"pools"`
     Hardware s_hw `json:"hardware"`
     Services []s_services `json:"services"`
     Shares []s_shares `json:"shares"`
@@ -188,6 +215,29 @@ func load_daily_file() {
 func flush_json_to_disk() {
     file, _ := json.MarshalIndent(TJSON, "", " ")
     _ = ioutil.WriteFile(DAILYFILE, file, 0644)
+}
+
+func increment_pool_vdev(s submission_json) {
+    var found bool
+    for j, _ := range s.Pools {
+	found = false
+        for i, _ := range TJSON.PoolVdevs {
+	    if ( TJSON.PoolVdevs[i].Vdevs == s.Pools[j].Vdevs ) {
+                TJSON.PoolVdevs[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newVdev t_pool_vdev_count
+        newVdev.Vdevs= s.Pools[j].Vdevs
+        newVdev.Count = 1
+        TJSON.PoolVdevs = append(TJSON.PoolVdevs, newVdev)
+    }
 }
 
 func increment_platform(s submission_json) {
@@ -270,6 +320,7 @@ func parse_data(s submission_json) {
     increment_platform(s)
     increment_services(s)
     increment_service_shares(s)
+    increment_pool_vdev(s)
 
     // TODO increment other submitted counters
     log.Println(s.Plugins)

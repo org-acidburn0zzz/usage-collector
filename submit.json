@@ -59,7 +59,7 @@
     {
       "capacity": 14000,
       "disks": 16,
-      "encryption": 0,
+      "encryption": false,
       "l2arc": false,
       "type": "raidz2",
       "used": 4000,
@@ -69,7 +69,7 @@
     {
       "capacity": 8000,
       "disks": 3,
-      "encryption": 2,
+      "encryption": true,
       "l2arc": false,
       "type": "raidz1",
       "used": 3000,

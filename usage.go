@@ -32,58 +32,61 @@ var WCOUNTER = 0
 type t_plat_count struct {
     Name string
     Version string
-    Count int
+    Count uint
 }
 
 type t_service_count struct {
     Name string
-    Count int
+    Count uint
 }
 
 type t_service_share_count struct {
     Name string
-    Count int
+    Count uint
 }
 
 type t_plugin_count struct {
     Name string
     Version string
-    Count int
+    Count uint
 }
 
 type t_pool_vdev_count struct {
-    Vdevs int
-    Count int
+    Vdevs uint
+    Count uint
 }
 
 type t_pool_disk_count struct {
-    Disks int
-    Count int
+    Disks uint
+    Count uint
 }
 
 type t_pool_type_count struct {
     Type string
-    Count int
+    Count uint
 }
 
-type t_pool_enc_count struct {
-    Count int
+type t_hw_cpus_count struct {
+    CPUs uint
+    Count uint
 }
 
-type t_pool_l2arc_count struct {
-    Count int
+type t_hw_memory_count struct {
+    Memory uint
+    Count uint
 }
 
-type t_pool_zil_count struct {
-    Count int
-}
-
-type t_pool_capacity_count struct {
-    Type string
-    Cap int
+type t_hw_nics_count struct {
+    Nics uint
+    Count uint
 }
 
 type tracking_json struct {
+    // Store HW counters
+    CPUs []t_hw_cpus_count `json:"cpus"`
+    Memory []t_hw_memory_count `json:"memory"`
+    Nics []t_hw_nics_count `json:"nics"`
+
     // Store Platform Version number count
     Platforms []t_plat_count `json:"platforms"`
 
@@ -106,19 +109,22 @@ type tracking_json struct {
     PoolTypes []t_pool_type_count `json:"pooltype"`
 
     // Counter for number of pools with encryption
-    PoolEnc []t_pool_enc_count `json:"poolenc"`
+    PoolEncryption uint `json:"poolencryption"`
 
     // Counter for number of pools with dedicated l2arc
-    PoolL2Arc []t_pool_l2arc_count `json:"pooll2arc"`
+    PoolL2arc uint `json:"pooll2arc"`
 
     // Counter for number of pools with dedicated zil
-    PoolL2Zil []t_pool_zil_count `json:"poolzil"`
+    PoolZil uint `json:"poolzil"`
 
     // Store the total capacity of globally managed storage
-    PoolCapacity []t_pool_capacity_count `json:"poolcapacity"`
+    PoolCapacity uint `json:"poolcapacity"`
+
+    // Store the total used of globally managed storage
+    PoolUsed uint `json:"poolused"`
 
     // Total number of system submissions
-    SystemCount int
+    SystemCount uint
 }
 
 var TJSON tracking_json
@@ -133,15 +139,19 @@ type s_plugins struct {
 
 type s_pools struct {
     Type string
-    Vdevs int
-    Disks int
-    Capacity int
+    Vdevs uint
+    Disks uint
+    Capacity uint
+    Used uint
+    Encryption bool
+    Zil bool
+    L2arc bool
 }
 
 type s_hw struct {
-    Cpus int
-    Memory int
-    Nics int
+    CPUs uint
+    Memory uint
+    Nics uint
 }
 
 type s_services struct {
@@ -166,6 +176,130 @@ type submission_json struct {
 
 //////////////////////////////////////////////////////////
 
+func increment_nics(s submission_json) {
+    var found bool
+    if ( TJSON.Nics == nil ) {
+        var newNics t_hw_nics_count
+        newNics.Nics = s.Hardware.Nics
+        newNics.Count = 1
+        TJSON.Nics = append(TJSON.Nics, newNics)
+	return
+    }
+    for i, _ := range TJSON.Nics {
+        found = false
+        if ( TJSON.Nics[i].Nics == s.Hardware.Nics ) {
+            TJSON.Nics[i].Count++
+            found = true
+            break
+        }
+
+        if ( found ) {
+             continue
+        }
+
+        var newNics t_hw_nics_count
+        newNics.Nics = s.Hardware.Nics
+        newNics.Count = 1
+        TJSON.Nics = append(TJSON.Nics, newNics)
+    }
+}
+
+func increment_memory(s submission_json) {
+    var found bool
+    if ( TJSON.Memory == nil ) {
+        var newMemory t_hw_memory_count
+        newMemory.Memory = s.Hardware.Memory
+        newMemory.Count = 1
+        TJSON.Memory = append(TJSON.Memory, newMemory)
+	return
+    }
+    for i, _ := range TJSON.Memory {
+        found = false
+        if ( TJSON.Memory[i].Memory == s.Hardware.Memory ) {
+            TJSON.Memory[i].Count++
+            found = true
+            break
+        }
+
+        if ( found ) {
+             continue
+        }
+
+        var newMemory t_hw_memory_count
+        newMemory.Memory = s.Hardware.Memory
+        newMemory.Count = 1
+        TJSON.Memory = append(TJSON.Memory, newMemory)
+    }
+}
+
+func increment_cpus(s submission_json) {
+    var found bool
+    if ( TJSON.CPUs == nil ) {
+        var newCPUs t_hw_cpus_count
+        newCPUs.CPUs = s.Hardware.CPUs
+        newCPUs.Count = 1
+        TJSON.CPUs = append(TJSON.CPUs, newCPUs)
+	return
+    }
+    for i, _ := range TJSON.CPUs {
+        found = false
+        if ( TJSON.CPUs[i].CPUs == s.Hardware.CPUs ) {
+            TJSON.CPUs[i].Count++
+            found = true
+            break
+        }
+
+        if ( found ) {
+             continue
+        }
+
+        var newCPUs t_hw_cpus_count
+        newCPUs.CPUs = s.Hardware.CPUs
+        newCPUs.Count = 1
+        TJSON.CPUs = append(TJSON.CPUs, newCPUs)
+    }
+}
+
+func increment_pool_used(s submission_json) {
+    for j, _ := range s.Pools {
+	if ( s.Pools[j].Used > 0 ) {
+	    TJSON.PoolUsed = TJSON.PoolUsed + s.Pools[j].Used
+	}
+    }
+}
+
+func increment_pool_capacity(s submission_json) {
+    for j, _ := range s.Pools {
+	if ( s.Pools[j].Capacity > 0 ) {
+	    TJSON.PoolCapacity = TJSON.PoolCapacity + s.Pools[j].Capacity
+	}
+    }
+}
+
+func increment_pool_encryption(s submission_json) {
+    for j, _ := range s.Pools {
+	if ( s.Pools[j].Encryption ) {
+	    TJSON.PoolEncryption++
+	}
+    }
+}
+
+func increment_pool_zil(s submission_json) {
+    for j, _ := range s.Pools {
+	if ( s.Pools[j].Zil ) {
+	    TJSON.PoolZil++
+	}
+    }
+}
+
+func increment_pool_l2arc(s submission_json) {
+    for j, _ := range s.Pools {
+	if ( s.Pools[j].L2arc ) {
+	    TJSON.PoolL2arc++
+	}
+    }
+}
+
 func increment_pool_types(s submission_json) {
     var found bool
     for j, _ := range s.Pools {
@@ -188,7 +322,6 @@ func increment_pool_types(s submission_json) {
         TJSON.PoolTypes = append(TJSON.PoolTypes, newType)
     }
 }
-
 
 func increment_pool_disks(s submission_json) {
     var found bool
@@ -319,6 +452,15 @@ func parse_data(s submission_json) {
     increment_pool_vdev(s)
     increment_pool_disks(s)
     increment_pool_types(s)
+    increment_pool_encryption(s)
+    increment_pool_zil(s)
+    increment_pool_l2arc(s)
+    increment_pool_capacity(s)
+    increment_pool_used(s)
+
+    increment_cpus(s)
+    increment_memory(s)
+    increment_nics(s)
 
     // TODO increment other submitted counters
     log.Println(s.Plugins)

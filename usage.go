@@ -102,11 +102,8 @@ type tracking_json struct {
     // Store counter of pool disk numbers
     PoolDisks []t_pool_disk_count `json:"pooldisks"`
 
-    // Store the total capacity of globally managed storage
-    PoolCapacity []t_pool_capacity_count `json:"poolcapacity"`
-
     // Counter for types of pools
-    PoolType []t_pool_type_count `json:"pooltype"`
+    PoolTypes []t_pool_type_count `json:"pooltype"`
 
     // Counter for number of pools with encryption
     PoolEnc []t_pool_enc_count `json:"poolenc"`
@@ -116,6 +113,9 @@ type tracking_json struct {
 
     // Counter for number of pools with dedicated zil
     PoolL2Zil []t_pool_zil_count `json:"poolzil"`
+
+    // Store the total capacity of globally managed storage
+    PoolCapacity []t_pool_capacity_count `json:"poolcapacity"`
 
     // Total number of system submissions
     SystemCount int
@@ -166,56 +166,29 @@ type submission_json struct {
 
 //////////////////////////////////////////////////////////
 
-// Clear out the JSON structure counters
-func zero_out_stats() {
-	TJSON = tracking_json{}
-}
+func increment_pool_types(s submission_json) {
+    var found bool
+    for j, _ := range s.Pools {
+	found = false
+        for i, _ := range TJSON.PoolTypes {
+	    if ( TJSON.PoolTypes[i].Type == s.Pools[j].Type ) {
+                TJSON.PoolTypes[i].Count++
+		found = true
+                break
+             }
+         }
 
-// Get the latest daily file to store data
-func get_daily_filename() {
-	t := time.Now()
-	newfile := SDIR + "/" + t.Format("20060102") + ".json"
-	if ( newfile != DAILYFILE ) {
+        if ( found ) {
+		continue
+        }
 
-	    // Flush previous data to disk
-	    if ( DAILYFILE != "" ) {
-		flush_json_to_disk()
-	    }
-	    // Timestamp has changed, lets reset our in-memory json counters structure
-	    zero_out_stats()
-
-	    // Set new DAILYFILE
-	    DAILYFILE = newfile
-	}
-
-}
-
-// Load the daily file into memory
-func load_daily_file() {
-    get_daily_filename()
-
-    // No file yet? Lets clear out the struct
-    if _, err := os.Stat(DAILYFILE) ; os.IsNotExist(err) {
-	zero_out_stats()
-        return
-    }
-
-    // Load the file into memory
-    dat, err := ioutil.ReadFile(DAILYFILE)
-    if ( err != nil ) {
-	log.Println(err)
-        log.Fatal("Failed loading daily file: " + DAILYFILE )
-    }
-    if err := json.Unmarshal(dat, &TJSON); err != nil {
-	log.Println(err)
-        log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
+        var newType t_pool_type_count
+        newType.Type= s.Pools[j].Type
+        newType.Count = 1
+        TJSON.PoolTypes = append(TJSON.PoolTypes, newType)
     }
 }
 
-func flush_json_to_disk() {
-    file, _ := json.MarshalIndent(TJSON, "", " ")
-    _ = ioutil.WriteFile(DAILYFILE, file, 0644)
-}
 
 func increment_pool_disks(s submission_json) {
     var found bool
@@ -345,6 +318,7 @@ func parse_data(s submission_json) {
     increment_service_shares(s)
     increment_pool_vdev(s)
     increment_pool_disks(s)
+    increment_pool_types(s)
 
     // TODO increment other submitted counters
     log.Println(s.Plugins)
@@ -380,6 +354,57 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 
     // Do things with the data
     parse_data(s)
+}
+
+// Clear out the JSON structure counters
+func zero_out_stats() {
+	TJSON = tracking_json{}
+}
+
+// Get the latest daily file to store data
+func get_daily_filename() {
+	t := time.Now()
+	newfile := SDIR + "/" + t.Format("20060102") + ".json"
+	if ( newfile != DAILYFILE ) {
+
+	    // Flush previous data to disk
+	    if ( DAILYFILE != "" ) {
+		flush_json_to_disk()
+	    }
+	    // Timestamp has changed, lets reset our in-memory json counters structure
+	    zero_out_stats()
+
+	    // Set new DAILYFILE
+	    DAILYFILE = newfile
+	}
+
+}
+
+// Load the daily file into memory
+func load_daily_file() {
+    get_daily_filename()
+
+    // No file yet? Lets clear out the struct
+    if _, err := os.Stat(DAILYFILE) ; os.IsNotExist(err) {
+	zero_out_stats()
+        return
+    }
+
+    // Load the file into memory
+    dat, err := ioutil.ReadFile(DAILYFILE)
+    if ( err != nil ) {
+	log.Println(err)
+        log.Fatal("Failed loading daily file: " + DAILYFILE )
+    }
+    if err := json.Unmarshal(dat, &TJSON); err != nil {
+	log.Println(err)
+        log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
+    }
+}
+
+func flush_json_to_disk() {
+    file, _ := json.MarshalIndent(TJSON, "", " ")
+    _ = ioutil.WriteFile(DAILYFILE, file, 0644)
 }
 
 // Lets do it!

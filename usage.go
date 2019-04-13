@@ -172,7 +172,16 @@ type t_vm struct {
     Vcpu []t_vm_vcpu_count `json:"vcpu"`
 }
 
+type t_country_count struct {
+    Country string
+    Count uint
+}
+
 type tracking_json struct {
+
+    // Country Tracker
+    Country []t_country_count `json:"country"`
+
     // Vm Tracker
     Vms t_vm `json:"vms"`
 
@@ -348,6 +357,9 @@ func parse_data(s submission_json, isocode string) {
     // Increase total number of systems
     TJSON.SystemCount++
 
+    // Update the country code
+    increment_country(isocode)
+
     // Update our in-memory counters
     increment_platform(s)
     increment_services(s)
@@ -394,6 +406,23 @@ func parse_data(s submission_json, isocode string) {
 
     // Unlock the mutex now
     wlock.Unlock()
+}
+
+func increment_country(isocode string) {
+    if ( isocode == "" ) {
+        return
+    }
+
+    for i, _ := range TJSON.Country {
+	if ( TJSON.Country[i].Country == isocode ) {
+		TJSON.Country[i].Count++
+		return
+	}
+    }
+    var newEntry t_country_count
+    newEntry.Country = isocode
+    newEntry.Count = 1
+    TJSON.Country = append(TJSON.Country, newEntry)
 }
 
 func increment_vms_vcpu(s submission_json) {
@@ -953,8 +982,9 @@ func increment_service_shares(s submission_json) {
     }
 }
 
+// Where is this request coming from?
 func get_location(clientip string) string {
-    log.Println("Checking IP: " + clientip)
+    //log.Println("Checking IP: " + clientip)
 
     db, err := geoip2.Open("GeoLite2-Country.mmdb")
     if err != nil {
@@ -962,11 +992,10 @@ func get_location(clientip string) string {
     }
     defer db.Close()
 
-    // If you are using strings that may be invalid, check that ip is not nil
     ip := net.ParseIP(clientip)
     record, err := db.Country(ip)
     if err != nil {
-            log.Fatal(err)
+            return ""
     }
     return record.Country.IsoCode
 }

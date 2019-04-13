@@ -148,7 +148,31 @@ type t_sys struct {
     Zvols []t_sys_zvols_count `json:"zvols"`
 }
 
+type t_vm_boot_count struct {
+    Boot string
+    Count uint
+}
+
+type t_vm_memory_count struct {
+    Memory uint
+    Count uint
+}
+
+type t_vm_vcpu_count struct {
+    Vcpu uint
+    Count uint
+}
+
+type t_vm struct {
+    Boot []t_vm_boot_count `json:"localusers"`
+    Memory []t_vm_memory_count `json:"memory"`
+    Vcpu []t_vm_vcpu_count `json:"vcpu"`
+}
+
 type tracking_json struct {
+    // Vm Tracker
+    Vms t_vm `json:"vms"`
+
     // System Tracker
     System t_sys `json:"system"`
 
@@ -247,6 +271,12 @@ type s_jails struct {
     Vnet bool `json:"vnet"`
 }
 
+type s_vms struct {
+    Boot string `json:"boot"`
+    Memory uint `json:"memory"`
+    Vcpus uint `json:"vcpus"`
+}
+
 type s_network_bridges struct {
     Count uint `json:"Count"`
     Members []string `json:"members"`
@@ -292,6 +322,7 @@ type submission_json struct {
     Network s_network `json:"network"`
     Jails []s_jails `json:"jails"`
     Plugins []s_plugins `json:"plugins"`
+    Vms []s_vms `json:"vms"`
     Pools []s_pools `json:"pools"`
     Hardware s_hw `json:"hardware"`
     Services []s_services `json:"services"`
@@ -333,6 +364,9 @@ func parse_data(s submission_json) {
 
     increment_jails(s)
     increment_plugins(s)
+    increment_vms_boot(s)
+    increment_vms_memory(s)
+    increment_vms_vcpu(s)
 
     increment_net_bridges(s)
     increment_net_vlans(s)
@@ -358,6 +392,76 @@ func parse_data(s submission_json) {
     // Unlock the mutex now
     wlock.Unlock()
 }
+
+func increment_vms_vcpu(s submission_json) {
+    var found bool
+    for j, _ := range s.Vms {
+	found = false
+        for i, _ := range TJSON.Vms.Vcpu {
+	    if ( s.Vms[j].Vcpus == TJSON.Vms.Vcpu[i].Vcpu ) {
+                TJSON.Vms.Vcpu[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_vm_vcpu_count
+        newEntry.Vcpu = s.Vms[j].Vcpus
+        newEntry.Count = 1
+        TJSON.Vms.Vcpu = append(TJSON.Vms.Vcpu, newEntry)
+    }
+}
+
+func increment_vms_boot(s submission_json) {
+    var found bool
+    for j, _ := range s.Vms {
+	found = false
+        for i, _ := range TJSON.Vms.Boot {
+	    if ( s.Vms[j].Boot == TJSON.Vms.Boot[i].Boot ) {
+                TJSON.Vms.Boot[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_vm_boot_count
+        newEntry.Boot = s.Vms[j].Boot
+        newEntry.Count = 1
+        TJSON.Vms.Boot = append(TJSON.Vms.Boot, newEntry)
+    }
+}
+
+func increment_vms_memory(s submission_json) {
+    var found bool
+    for j, _ := range s.Vms {
+	found = false
+        for i, _ := range TJSON.Vms.Memory {
+	    if ( s.Vms[j].Memory == TJSON.Vms.Memory[i].Memory ) {
+                TJSON.Vms.Memory[i].Count++
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_vm_memory_count
+        newEntry.Memory = s.Vms[j].Memory
+        newEntry.Count = 1
+        TJSON.Vms.Memory = append(TJSON.Vms.Memory, newEntry)
+    }
+}
+
 
 func increment_sys_snapshots(s submission_json) {
     var snapcount uint

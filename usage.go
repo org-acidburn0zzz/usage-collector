@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "log"
     "io/ioutil"
+    "net"
     "net/http"
     "os"
     "os/signal"
@@ -11,6 +12,8 @@ import (
     "sync"
     "syscall"
     "time"
+
+    "github.com/oschwald/geoip2-golang"
 )
 
 // Global vars
@@ -334,7 +337,7 @@ type submission_json struct {
 // Parsing and counting data routines below
 //////////////////////////////////////////////////////////
 
-func parse_data(s submission_json) {
+func parse_data(s submission_json, isocode string) {
 
     // Do this all within a locked mutex
     wlock.Lock()
@@ -950,6 +953,24 @@ func increment_service_shares(s submission_json) {
     }
 }
 
+func get_location(clientip string) string {
+    log.Println("Checking IP: " + clientip)
+
+    db, err := geoip2.Open("GeoLite2-Country.mmdb")
+    if err != nil {
+            log.Fatal(err)
+    }
+    defer db.Close()
+
+    // If you are using strings that may be invalid, check that ip is not nil
+    ip := net.ParseIP(clientip)
+    record, err := db.Country(ip)
+    if err != nil {
+            log.Fatal(err)
+    }
+    return record.Country.IsoCode
+}
+
 // Getting a new submission
 func submit(rw http.ResponseWriter, req *http.Request) {
     decoder := json.NewDecoder(req.Body)
@@ -962,8 +983,12 @@ func submit(rw http.ResponseWriter, req *http.Request) {
         return
     }
 
+    // Lookup Geo IP
+    ip,_,_ := net.SplitHostPort(req.RemoteAddr)
+    isocode := get_location(ip)
+
     // Do things with the data
-    parse_data(s)
+    parse_data(s, isocode)
 }
 
 // Clear out the JSON structure counters

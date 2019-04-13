@@ -81,11 +81,21 @@ type t_hw_nics_count struct {
     Count uint
 }
 
+type t_jails_count struct {
+    Release string `json:"release"`
+    Nat uint `json:"nat"`
+    Vnet uint `json:"vnet"`
+    Count uint `json:"count"`
+}
+
 type tracking_json struct {
     // Store HW counters
     CPUs []t_hw_cpus_count `json:"cpus"`
     Memory []t_hw_memory_count `json:"memory"`
     Nics []t_hw_nics_count `json:"nics"`
+
+    // Store Jail counters
+    Jails []t_jails_count `json:"jails"`
 
     // Store Platform Version number count
     Platforms []t_plat_count `json:"platforms"`
@@ -164,9 +174,16 @@ type s_shares struct {
     AllowGuest bool `json:"allowguest"`
 }
 
+type s_jails struct {
+    Nat bool `json:"nat"`
+    Release string `json:"release"`
+    Vnet bool `json:"vnet"`
+}
+
 type submission_json struct {
     Platform string
     Version string
+    Jails []s_jails `json:"jails"`
     Plugins []s_plugins `json:"plugins"`
     Pools []s_pools `json:"pools"`
     Hardware s_hw `json:"hardware"`
@@ -175,6 +192,42 @@ type submission_json struct {
 }
 
 //////////////////////////////////////////////////////////
+
+func increment_jails(s submission_json) {
+    var found bool
+    for j, _ := range s.Jails {
+	found = false
+        for i, _ := range TJSON.Jails {
+	    if ( TJSON.Jails[i].Release == s.Jails[j].Release ) {
+                TJSON.Jails[i].Count++
+		if ( s.Jails[j].Vnet ) {
+		    TJSON.Jails[i].Vnet++
+		}
+		if ( s.Jails[j].Nat ) {
+		    TJSON.Jails[i].Nat++
+		}
+		found = true
+                break
+             }
+         }
+
+        if ( found ) {
+		continue
+        }
+
+        var newEntry t_jails_count
+        newEntry.Release= s.Jails[j].Release
+        newEntry.Count = 1
+	if ( s.Jails[j].Vnet ) {
+	    newEntry.Vnet = 1
+	}
+	if ( s.Jails[j].Nat ) {
+	    newEntry.Nat = 1
+	}
+        TJSON.Jails = append(TJSON.Jails, newEntry)
+    }
+}
+
 
 func increment_nics(s submission_json) {
     var found bool

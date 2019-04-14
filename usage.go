@@ -1041,6 +1041,10 @@ func get_daily_filename() {
 
 	    // Set new DAILYFILE
 	    DAILYFILE = newfile
+
+	    // Update the latest.json symlink
+	    os.Remove(SDIR + "/latest.json")
+	    os.Symlink(newfile, SDIR + "/latest.json")
 	}
 
 }

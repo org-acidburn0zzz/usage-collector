@@ -157,12 +157,12 @@
       "zil": false
     },
     {
-      "capacity": 2013130752,
+      "capacity": 920223744,
       "disks": 4,
       "encryption": false,
       "l2arc": false,
       "type": "raidz1",
-      "used": 1093242880,
+      "used": 335872,
       "vdevs": 2,
       "zil": false
     },
@@ -307,6 +307,7 @@
   ],
   "system": [
     {
+      "datasets": 63,
       "snapshots": 28,
       "users": 34,
       "zvols": 2

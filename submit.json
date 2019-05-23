@@ -1,139 +1,336 @@
 {
   "hardware": {
-    "cpus": 8,
-    "memory": 8,
-    "nics": 2
+    "cpus": 1,
+    "memory": 6399963136,
+    "nics": 11
   },
   "jails": [
     {
       "nat": true,
-      "release": "11.2-RELEASE",
+      "release": "11.2-RELEASE-p9",
       "vnet": true
+    },
+    {
+      "nat": true,
+      "release": "11.2-RELEASE-p9",
+      "vnet": false
+    },
+    {
+      "nat": false,
+      "release": "11.2-RELEASE-p9",
+      "vnet": false
+    },
+    {
+      "nat": true,
+      "release": "11.2-RELEASE-p9",
+      "vnet": true
+    },
+    {
+      "nat": true,
+      "release": "11.2-RELEASE-p9",
+      "vnet": true
+    },
+    {
+      "nat": false,
+      "release": "11.2-RELEASE-p9",
+      "vnet": false
     }
   ],
   "network": {
     "bridges": [
       {
         "members": [
-          "lagg0",
-          "vnet0"
+          "igb0"
         ],
-        "mtu": 1500
+        "mtu": null
       }
     ],
-    "laggs": [
+    "lags": [
       {
         "members": [
-          "igb0",
-          "igb1"
+          "igb1",
+          "igb2"
         ],
-        "mtu": 1500,
+        "mtu": null,
         "type": "LACP"
       }
     ],
     "phys": [
       {
-        "mtu": 9000,
-        "name": "igb0"
+        "dhcp": true,
+        "mtu": null,
+        "name": "em0",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "vnet0.2",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "igb0",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "igb1",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "igb2",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "igb3",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "igb4",
+        "slaac": false
+      },
+      {
+        "dhcp": false,
+        "mtu": null,
+        "name": "vnet0.5",
+        "slaac": false
       }
     ],
     "vlans": [
       {
-        "mtu": 1500,
-        "parent": "lagg0"
+        "mtu": null,
+        "name": "vlan10",
+        "pcp": null,
+        "tag": 10
       }
     ]
   },
   "platform": "FreeNAS",
   "plugins": [
     {
-      "name": "plexmediaserver",
-      "version": "1.4.0.99"
+      "name": "rslsync",
+      "version": "2.6.3"
     },
     {
-      "name": "radarr",
-      "version": "1.1.0"
+      "name": "syncthing",
+      "version": "1.1.2"
     }
   ],
   "pools": [
     {
-      "capacity": 14000,
-      "disks": 16,
+      "capacity": 20283346944,
+      "disks": 1,
       "encryption": false,
       "l2arc": false,
-      "type": "raidz2",
-      "used": 4000,
+      "type": "stripe",
+      "used": 19549143040,
+      "vdevs": 1,
+      "zil": false
+    },
+    {
+      "capacity": 2013167616,
+      "disks": 2,
+      "encryption": false,
+      "l2arc": false,
+      "type": "stripe",
+      "used": 335872,
       "vdevs": 2,
       "zil": false
     },
     {
-      "capacity": 8000,
-      "disks": 3,
-      "encryption": true,
+      "capacity": 939425792,
+      "disks": 2,
+      "encryption": false,
       "l2arc": false,
       "type": "raidz1",
-      "used": 3000,
+      "used": 335872,
+      "vdevs": 1,
+      "zil": false
+    },
+    {
+      "capacity": 2013130752,
+      "disks": 4,
+      "encryption": false,
+      "l2arc": false,
+      "type": "raidz1",
+      "used": 1093242880,
+      "vdevs": 2,
+      "zil": false
+    },
+    {
+      "capacity": 939425792,
+      "disks": 2,
+      "encryption": false,
+      "l2arc": false,
+      "type": "mirror",
+      "used": 335872,
       "vdevs": 1,
       "zil": false
     }
   ],
   "services": [
     {
-      "enabled": false,
-      "name": "ad"
-    },
-    {
-      "enabled": false,
+      "enabled": true,
       "name": "afp"
     },
     {
       "enabled": true,
-      "name": "iscsi"
+      "name": "cifs"
     },
     {
       "enabled": false,
-      "name": "ldap"
+      "name": "dynamicdns"
     },
     {
       "enabled": false,
-      "name": "nfs"
+      "name": "ftp"
+    },
+    {
+      "enabled": false,
+      "name": "iscsitarget"
     },
     {
       "enabled": true,
-      "name": "smb"
+      "name": "nfs"
+    },
+    {
+      "enabled": false,
+      "name": "snmp"
+    },
+    {
+      "enabled": true,
+      "name": "ssh"
+    },
+    {
+      "enabled": false,
+      "name": "tftp"
+    },
+    {
+      "enabled": false,
+      "name": "ups"
+    },
+    {
+      "enabled": false,
+      "name": "rsync"
+    },
+    {
+      "enabled": true,
+      "name": "smartd"
+    },
+    {
+      "enabled": false,
+      "name": "lldp"
+    },
+    {
+      "enabled": false,
+      "name": "webdav"
+    },
+    {
+      "enabled": false,
+      "name": "s3"
+    },
+    {
+      "enabled": false,
+      "name": "netdata"
     }
   ],
   "shares": [
     {
-      "allowguest": false,
-      "type": "SMB"
+      "home": true,
+      "nostat": false,
+      "timemachine": true,
+      "type": "AFP",
+      "unixpriv": true,
+      "zerodev": false
     },
     {
+      "avail_threshold": null,
+      "blocksize": 512,
+      "filesize": "0",
+      "groups": [
+        {
+          "auth": null,
+          "authmethod": "NONE",
+          "initiator": 1,
+          "portal": 1
+        }
+      ],
+      "insecure_tpc": true,
+      "iscsi_type": "DISK",
+      "legacy": false,
+      "mode": "ISCSI",
+      "pblocksize": false,
+      "readonly": false,
+      "rpm": "SSD",
+      "type": "ISCSI",
+      "xen": false
+    },
+    {
+      "alldirs": false,
+      "quiet": false,
+      "readonly": true,
       "type": "NFS"
     },
     {
-      "type": "AFP"
+      "abe": false,
+      "browsable": true,
+      "guestok": true,
+      "guestonly": false,
+      "home": true,
+      "recyclebin": false,
+      "shadowcopy": true,
+      "timemachine": true,
+      "type": "SMB",
+      "vfsobjects": [
+        "fruit",
+        "full_audit",
+        "ixnas",
+        "media_harmony",
+        "noacl",
+        "streams_xattr"
+      ]
     },
     {
+      "changeperms": true,
+      "readonly": false,
       "type": "WEBDAV"
-    },
-    {
-      "type": "ISCSI"
     }
   ],
-  "system": {
-    "datasets": 10,
-    "localusers": 5,
-    "snapshots": 150,
-    "zvols": 2
-  },
+  "system": [
+    {
+      "snapshots": 28,
+      "users": 34,
+      "zvols": 2
+    }
+  ],
   "usage_version": 1,
-  "version": "11.2-U3",
+  "version": "FreeNAS-11.3-MASTER-201905160622",
   "vms": [
     {
-      "boot": "UEFI",
-      "memory": 1000,
-      "vcpus": 1
+      "autostart": false,
+      "bootloader": "UEFI",
+      "disks": 1,
+      "memory": 2048,
+      "nics": 1,
+      "time": "LOCAL",
+      "vcpus": 1,
+      "vnc_configs": [
+        {
+          "vnc_resolution": "1024x768",
+          "wait": false,
+          "web": true
+        }
+      ],
+      "vncs": 1
     }
   ]
 }

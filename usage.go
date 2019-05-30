@@ -323,7 +323,7 @@ type s_network struct {
 
 type s_system struct {
 	Datasets   uint `json:"datasets"`
-	Localusers uint `json:"localusers"`
+	Localusers uint `json:"users"`
 	Snapshots  uint `json:"snapshots"`
 	Zvols      uint `json:"zvols"`
 }
@@ -339,7 +339,7 @@ type submission_json struct {
 	Hardware s_hw         `json:"hardware"`
 	Services []s_services `json:"services"`
 	Shares   []s_shares   `json:"shares"`
-	System   s_system     `json:"system"`
+	System   []s_system   `json:"system"`
 }
 
 //////////////////////////////////////////////////////////
@@ -495,21 +495,24 @@ func increment_vms_memory(s submission_json) {
 }
 
 func increment_sys_snapshots(s submission_json) {
+	if ( len(s.System) <= 0 ) {
+		return
+	}
 	var snapcount uint
 	// Snapshots vary wildly, lets get some rough approx
-	if s.System.Snapshots > 10000 {
+	if s.System[0].Snapshots > 10000 {
 		snapcount = 10000
-	} else if s.System.Snapshots > 5000 {
+	} else if s.System[0].Snapshots > 5000 {
 		snapcount = 5000
-	} else if s.System.Snapshots > 1000 {
+	} else if s.System[0].Snapshots > 1000 {
 		snapcount = 5000
-	} else if s.System.Snapshots > 500 {
+	} else if s.System[0].Snapshots > 500 {
 		snapcount = 500
-	} else if s.System.Snapshots > 100 {
+	} else if s.System[0].Snapshots > 100 {
 		snapcount = 100
-	} else if s.System.Snapshots > 50 {
+	} else if s.System[0].Snapshots > 50 {
 		snapcount = 50
-	} else if s.System.Snapshots > 25 {
+	} else if s.System[0].Snapshots > 25 {
 		snapcount = 25
 	} else {
 		snapcount = 10
@@ -528,40 +531,49 @@ func increment_sys_snapshots(s submission_json) {
 }
 
 func increment_sys_zvols(s submission_json) {
+	if ( len(s.System) <= 0 ) {
+		return
+	}
 	for i, _ := range TJSON.System.Zvols {
-		if TJSON.System.Zvols[i].Zvols == s.System.Zvols {
+		if TJSON.System.Zvols[i].Zvols == s.System[0].Zvols {
 			TJSON.System.Zvols[i].Count++
 			return
 		}
 	}
 	var newEntry t_sys_zvols_count
-	newEntry.Zvols = s.System.Zvols
+	newEntry.Zvols = s.System[0].Zvols
 	newEntry.Count = 1
 	TJSON.System.Zvols = append(TJSON.System.Zvols, newEntry)
 }
 
 func increment_sys_datasets(s submission_json) {
+	if ( len(s.System) <= 0 ) {
+		return
+	}
 	for i, _ := range TJSON.System.Datasets {
-		if TJSON.System.Datasets[i].Datasets == s.System.Datasets {
+		if TJSON.System.Datasets[i].Datasets == s.System[0].Datasets {
 			TJSON.System.Datasets[i].Count++
 			return
 		}
 	}
 	var newEntry t_sys_datasets_count
-	newEntry.Datasets = s.System.Datasets
+	newEntry.Datasets = s.System[0].Datasets
 	newEntry.Count = 1
 	TJSON.System.Datasets = append(TJSON.System.Datasets, newEntry)
 }
 
 func increment_sys_users(s submission_json) {
+	if ( len(s.System) <= 0 ) {
+		return
+	}
 	for i, _ := range TJSON.System.Localusers {
-		if TJSON.System.Localusers[i].Localusers == s.System.Localusers {
+		if TJSON.System.Localusers[i].Localusers == s.System[0].Localusers {
 			TJSON.System.Localusers[i].Count++
 			return
 		}
 	}
 	var newEntry t_sys_users_count
-	newEntry.Localusers = s.System.Localusers
+	newEntry.Localusers = s.System[0].Localusers
 	newEntry.Count = 1
 	TJSON.System.Localusers = append(TJSON.System.Localusers, newEntry)
 }

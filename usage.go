@@ -98,7 +98,7 @@ type t_net_bridges_members_count struct {
 	Count   uint
 }
 
-type t_net_laggs_members_count struct {
+type t_net_lags_members_count struct {
 	Members []string
 	Type    string
 	Mtu     uint
@@ -119,7 +119,7 @@ type t_net_vlans_count struct {
 
 type t_networking_count struct {
 	Bridges []t_net_bridges_members_count `json:"bridges"`
-	Laggs   []t_net_laggs_members_count   `json:"laggs"`
+	Laggs   []t_net_lags_members_count   `json:"lags"`
 	Phys    []t_net_phys_count            `json:"phys"`
 	Vlans   []t_net_vlans_count           `json:"vlans"`
 }
@@ -295,7 +295,7 @@ type s_network_bridges struct {
 	Mtu     uint     `json:"mtu"`
 }
 
-type s_network_laggs struct {
+type s_network_lags struct {
 	Count   uint     `json:"Count"`
 	Members []string `json:"members"`
 	Mtu     uint     `json:"mtu"`
@@ -316,7 +316,7 @@ type s_network_vlans struct {
 
 type s_network struct {
 	Bridges []s_network_bridges `json:"bridges"`
-	Laggs   []s_network_laggs   `json:"laggs"`
+	Laggs   []s_network_lags   `json:"lags"`
 	Phys    []s_network_phys    `json:"phys"`
 	Vlans   []s_network_vlans   `json:"vlans"`
 }
@@ -385,7 +385,7 @@ func parse_data(s submission_json, isocode string) {
 
 	increment_net_bridges(s)
 	increment_net_vlans(s)
-	increment_net_laggs(s)
+	increment_net_lags(s)
 	increment_net_phys(s)
 
 	increment_sys_users(s)
@@ -650,7 +650,7 @@ func increment_net_phys(s submission_json) {
 	}
 }
 
-func increment_net_laggs(s submission_json) {
+func increment_net_lags(s submission_json) {
 	var found bool
 	for j, _ := range s.Network.Laggs {
 		found = false
@@ -666,7 +666,7 @@ func increment_net_laggs(s submission_json) {
 			continue
 		}
 
-		var newEntry t_net_laggs_members_count
+		var newEntry t_net_lags_members_count
 		newEntry.Members = s.Network.Laggs[j].Members
 		newEntry.Mtu = s.Network.Laggs[j].Mtu
 		newEntry.Type = s.Network.Laggs[j].Type

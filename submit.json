@@ -153,7 +153,7 @@
       "zil": false
     },
     {
-      "capacity": 939425792,
+      "capacity": 20283346944,
       "disks": 2,
       "encryption": false,
       "l2arc": false,

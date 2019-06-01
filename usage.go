@@ -826,7 +826,8 @@ func increment_pool_used(s submission_json) {
 func increment_pool_capacity(s submission_json) {
 	for j, _ := range s.Pools {
 		if s.Pools[j].Capacity > 0 {
-			TJSON.PoolCapacity = TJSON.PoolCapacity + s.Pools[j].Capacity
+			sizeGB := convert_to_gigabytes(s.Pools[j].Capacity)
+			TJSON.PoolCapacity = TJSON.PoolCapacity + sizeGB
 		}
 	}
 }

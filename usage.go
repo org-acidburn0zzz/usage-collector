@@ -119,7 +119,7 @@ type t_net_vlans_count struct {
 
 type t_networking_count struct {
 	Bridges []t_net_bridges_members_count `json:"bridges"`
-	Laggs   []t_net_lags_members_count   `json:"lags"`
+	Laggs   []t_net_lags_members_count    `json:"lags"`
 	Phys    []t_net_phys_count            `json:"phys"`
 	Vlans   []t_net_vlans_count           `json:"vlans"`
 }
@@ -316,7 +316,7 @@ type s_network_vlans struct {
 
 type s_network struct {
 	Bridges []s_network_bridges `json:"bridges"`
-	Laggs   []s_network_lags   `json:"lags"`
+	Laggs   []s_network_lags    `json:"lags"`
 	Phys    []s_network_phys    `json:"phys"`
 	Vlans   []s_network_vlans   `json:"vlans"`
 }
@@ -495,7 +495,7 @@ func increment_vms_memory(s submission_json) {
 }
 
 func increment_sys_snapshots(s submission_json) {
-	if ( len(s.System) <= 0 ) {
+	if len(s.System) <= 0 {
 		return
 	}
 	var snapcount uint
@@ -531,7 +531,7 @@ func increment_sys_snapshots(s submission_json) {
 }
 
 func increment_sys_zvols(s submission_json) {
-	if ( len(s.System) <= 0 ) {
+	if len(s.System) <= 0 {
 		return
 	}
 	for i, _ := range TJSON.System.Zvols {
@@ -547,7 +547,7 @@ func increment_sys_zvols(s submission_json) {
 }
 
 func increment_sys_datasets(s submission_json) {
-	if ( len(s.System) <= 0 ) {
+	if len(s.System) <= 0 {
 		return
 	}
 	for i, _ := range TJSON.System.Datasets {
@@ -563,7 +563,7 @@ func increment_sys_datasets(s submission_json) {
 }
 
 func increment_sys_users(s submission_json) {
-	if ( len(s.System) <= 0 ) {
+	if len(s.System) <= 0 {
 		return
 	}
 	for i, _ := range TJSON.System.Localusers {
@@ -762,32 +762,34 @@ func increment_nics(s submission_json) {
 	}
 }
 
+func convert_to_gigabytes(convert uint) uint {
+	return (convert / 1024 / 1024 / 1024)
+}
+
 func increment_memory(s submission_json) {
 	var found bool
-	if TJSON.Memory == nil {
-		var newEntry t_hw_memory_count
-		newEntry.Memory = s.Hardware.Memory
-		newEntry.Count = 1
-		TJSON.Memory = append(TJSON.Memory, newEntry)
-		return
-	}
+	found = false
+
+	memGB := convert_to_gigabytes(s.Hardware.Memory)
+
 	for i, _ := range TJSON.Memory {
 		found = false
-		if TJSON.Memory[i].Memory == s.Hardware.Memory {
+		if TJSON.Memory[i].Memory == memGB {
 			TJSON.Memory[i].Count++
 			found = true
 			break
 		}
 
-		if found {
-			continue
-		}
-
-		var newEntry t_hw_memory_count
-		newEntry.Memory = s.Hardware.Memory
-		newEntry.Count = 1
-		TJSON.Memory = append(TJSON.Memory, newEntry)
 	}
+
+	if found {
+		return
+	}
+
+	var newEntry t_hw_memory_count
+	newEntry.Memory = memGB
+	newEntry.Count = 1
+	TJSON.Memory = append(TJSON.Memory, newEntry)
 }
 
 func increment_cpus(s submission_json) {

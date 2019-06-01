@@ -794,13 +794,8 @@ func increment_memory(s submission_json) {
 
 func increment_cpus(s submission_json) {
 	var found bool
-	if TJSON.CPUs == nil {
-		var newEntry t_hw_cpus_count
-		newEntry.CPUs = s.Hardware.CPUs
-		newEntry.Count = 1
-		TJSON.CPUs = append(TJSON.CPUs, newEntry)
-		return
-	}
+	found = false
+
 	for i, _ := range TJSON.CPUs {
 		found = false
 		if TJSON.CPUs[i].CPUs == s.Hardware.CPUs {
@@ -808,16 +803,16 @@ func increment_cpus(s submission_json) {
 			found = true
 			break
 		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_hw_cpus_count
-		newEntry.CPUs = s.Hardware.CPUs
-		newEntry.Count = 1
-		TJSON.CPUs = append(TJSON.CPUs, newEntry)
 	}
+
+	if ( found ) {
+		return
+	}
+
+	var newEntry t_hw_cpus_count
+	newEntry.CPUs = s.Hardware.CPUs
+	newEntry.Count = 1
+	TJSON.CPUs = append(TJSON.CPUs, newEntry)
 }
 
 func increment_pool_used(s submission_json) {

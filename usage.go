@@ -237,6 +237,9 @@ type tracking_json struct {
 
 	// Total number of system submissions
 	SystemCount uint
+
+	// Total number of pools under mgmt
+	PoolCount uint
 }
 
 var TJSON tracking_json
@@ -853,6 +856,7 @@ func increment_pool_l2arc(s submission_json) {
 func increment_pool_types(s submission_json) {
 	var found bool
 	for j, _ := range s.Pools {
+		TJSON.PoolCount++
 		found = false
 		for i, _ := range TJSON.PoolTypes {
 			if TJSON.PoolTypes[i].Type == s.Pools[j].Type {

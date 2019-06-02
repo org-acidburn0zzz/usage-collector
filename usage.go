@@ -736,13 +736,7 @@ func increment_jails(s submission_json) {
 
 func increment_nics(s submission_json) {
 	var found bool
-	if TJSON.Nics == nil {
-		var newEntry t_hw_nics_count
-		newEntry.Nics = s.Hardware.Nics
-		newEntry.Count = 1
-		TJSON.Nics = append(TJSON.Nics, newEntry)
-		return
-	}
+	found = false
 	for i, _ := range TJSON.Nics {
 		found = false
 		if TJSON.Nics[i].Nics == s.Hardware.Nics {
@@ -750,16 +744,16 @@ func increment_nics(s submission_json) {
 			found = true
 			break
 		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_hw_nics_count
-		newEntry.Nics = s.Hardware.Nics
-		newEntry.Count = 1
-		TJSON.Nics = append(TJSON.Nics, newEntry)
 	}
+
+	if ( found ) {
+		return
+	}
+
+	var newEntry t_hw_nics_count
+	newEntry.Nics = s.Hardware.Nics
+	newEntry.Count = 1
+	TJSON.Nics = append(TJSON.Nics, newEntry)
 }
 
 func convert_to_gigabytes(convert uint) uint {

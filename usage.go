@@ -166,10 +166,16 @@ type t_vm_vcpu_count struct {
 	Count uint
 }
 
+type t_vm_disks_count struct {
+	Disks  uint
+	Count uint
+}
+
 type t_vm struct {
 	Boot   []t_vm_boot_count   `json:"localusers"`
 	Memory []t_vm_memory_count `json:"memory"`
 	Vcpu   []t_vm_vcpu_count   `json:"vcpu"`
+	Disks  []t_vm_disks_count   `json:"disks"`
 }
 
 type t_country_count struct {
@@ -290,6 +296,7 @@ type s_vms struct {
 	Boot   string `json:"boot"`
 	Memory uint   `json:"memory"`
 	Vcpus  uint   `json:"vcpus"`
+	Disks  uint   `json:"disks"`
 }
 
 type s_network_bridges struct {
@@ -385,6 +392,7 @@ func parse_data(s submission_json, isocode string) {
 	increment_vms_boot(s)
 	increment_vms_memory(s)
 	increment_vms_vcpu(s)
+    increment_vms_disks(s)
 
 	increment_net_bridges(s)
 	increment_net_vlans(s)
@@ -426,6 +434,29 @@ func increment_country(isocode string) {
 	newEntry.Country = isocode
 	newEntry.Count = 1
 	TJSON.Country = append(TJSON.Country, newEntry)
+}
+
+func increment_vms_disks(s submission_json) {
+	var found bool
+	for j, _ := range s.Vms {
+		found = false
+		for i, _ := range TJSON.Vms.Disks {
+			if s.Vms[j].Disks == TJSON.Vms.Disks[i].Disks {
+				TJSON.Vms.Disks[i].Count++
+				found = true
+				break
+			}
+		}
+
+		if found {
+			continue
+		}
+
+		var newEntry t_vm_disks_count
+		newEntry.Disks = s.Vms[j].Disks
+		newEntry.Count = 1
+		TJSON.Vms.Disks = append(TJSON.Vms.Disks, newEntry)
+	}
 }
 
 func increment_vms_vcpu(s submission_json) {

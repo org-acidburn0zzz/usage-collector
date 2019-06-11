@@ -176,6 +176,11 @@ type t_vm_nics_count struct {
 	Count uint
 }
 
+
+
+
+
+
 type t_vm_vncs_count struct {
 	Vncs  uint
 	Count uint
@@ -187,6 +192,7 @@ type t_vm struct {
 	Vcpu   []t_vm_vcpu_count   `json:"vcpu"`
 	Disks  []t_vm_disks_count  `json:"disks"`
 	Nics   []t_vm_nics_count   `json:"nics"`
+	
 	Vncs   []t_vm_vncs_count   `json:"vncs"`
 }
 
@@ -310,6 +316,7 @@ type s_vms struct {
 	Vcpus  uint   `json:"vcpus"`
 	Disks  uint   `json:"disks"`
 	Nics   uint   `json:"nics"`
+	
 	Vncs   uint   `json:"vncs"`
 }
 
@@ -408,7 +415,8 @@ func parse_data(s submission_json, isocode string) {
 	increment_vms_vcpu(s)
     increment_vms_disks(s)
     increment_vms_nics(s)
-    increment_vms_vncs(s)
+    
+	increment_vms_vncs(s)
 
 	increment_net_bridges(s)
 	increment_net_vlans(s)
@@ -497,6 +505,29 @@ func increment_vms_nics(s submission_json) {
 		TJSON.Vms.Nics = append(TJSON.Vms.Nics, newEntry)
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 func increment_vms_vncs(s submission_json) {
 	var found bool

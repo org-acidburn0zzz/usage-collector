@@ -578,7 +578,6 @@ func increment_vms_time(s submission_json) {
 		newEntry.Time = s.Vms[j].Time
 		newEntry.Count = 1
 		TJSON.Vms.Time = append(TJSON.Vms.Time, newEntry)
->>>>>>> master
 	}
 }
 

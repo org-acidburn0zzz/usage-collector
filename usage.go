@@ -176,13 +176,12 @@ type t_vm_nics_count struct {
 	Count uint
 }
 
-
-
-
-
-
 type t_vm_vncs_count struct {
 	Vncs  uint
+	Count uint
+}
+type t_vm_time_count struct {
+	Time  string
 	Count uint
 }
 
@@ -192,8 +191,8 @@ type t_vm struct {
 	Vcpu   []t_vm_vcpu_count   `json:"vcpu"`
 	Disks  []t_vm_disks_count  `json:"disks"`
 	Nics   []t_vm_nics_count   `json:"nics"`
-	
 	Vncs   []t_vm_vncs_count   `json:"vncs"`
+	Time   []t_vm_time_count   `json:"time"`
 }
 
 type t_country_count struct {
@@ -316,8 +315,8 @@ type s_vms struct {
 	Vcpus  uint   `json:"vcpus"`
 	Disks  uint   `json:"disks"`
 	Nics   uint   `json:"nics"`
-	
 	Vncs   uint   `json:"vncs"`
+	Time   string `json:"time"`
 }
 
 type s_network_bridges struct {
@@ -415,8 +414,8 @@ func parse_data(s submission_json, isocode string) {
 	increment_vms_vcpu(s)
     increment_vms_disks(s)
     increment_vms_nics(s)
-    
 	increment_vms_vncs(s)
+    increment_vms_time(s)
 
 	increment_net_bridges(s)
 	increment_net_vlans(s)
@@ -506,29 +505,6 @@ func increment_vms_nics(s submission_json) {
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 func increment_vms_vncs(s submission_json) {
 	var found bool
 	for j, _ := range s.Vms {
@@ -536,6 +512,27 @@ func increment_vms_vncs(s submission_json) {
 		for i, _ := range TJSON.Vms.Vncs {
 			if s.Vms[j].Vncs == TJSON.Vms.Vncs[i].Vncs {
 				TJSON.Vms.Vncs[i].Count++
+								found = true
+				break
+			}
+		}
+
+		if found {
+			continue
+		}
+		var newEntry t_vm_vncs_count
+		newEntry.Vncs = s.Vms[j].Vncs
+		newEntry.Count = 1
+		TJSON.Vms.Vncs = append(TJSON.Vms.Vncs, newEntry)
+	}
+}
+func increment_vms_time(s submission_json) {
+	var found bool
+	for j, _ := range s.Vms {
+		found = false
+		for i, _ := range TJSON.Vms.Time {
+			if s.Vms[j].Time == TJSON.Vms.Time[i].Time {
+				TJSON.Vms.Time[i].Count++
 				found = true
 				break
 			}
@@ -544,11 +541,10 @@ func increment_vms_vncs(s submission_json) {
 		if found {
 			continue
 		}
-
-		var newEntry t_vm_vncs_count
-		newEntry.Vncs = s.Vms[j].Vncs
+		var newEntry t_vm_time_count
+		newEntry.Time = s.Vms[j].Time
 		newEntry.Count = 1
-		TJSON.Vms.Vncs = append(TJSON.Vms.Vncs, newEntry)
+		TJSON.Vms.Time = append(TJSON.Vms.Time, newEntry)
 	}
 }
 

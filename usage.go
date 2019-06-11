@@ -167,12 +167,17 @@ type t_vm_vcpu_count struct {
 }
 
 type t_vm_disks_count struct {
-	Disks  uint
+	Disks uint
 	Count uint
 }
 
 type t_vm_nics_count struct {
 	Nics  uint
+	Count uint
+}
+
+type t_vm_vncs_count struct {
+	Vncs  uint
 	Count uint
 }
 
@@ -182,6 +187,7 @@ type t_vm struct {
 	Vcpu   []t_vm_vcpu_count   `json:"vcpu"`
 	Disks  []t_vm_disks_count  `json:"disks"`
 	Nics   []t_vm_nics_count   `json:"nics"`
+	Vncs   []t_vm_vncs_count   `json:"vncs"`
 }
 
 type t_country_count struct {
@@ -304,6 +310,7 @@ type s_vms struct {
 	Vcpus  uint   `json:"vcpus"`
 	Disks  uint   `json:"disks"`
 	Nics   uint   `json:"nics"`
+	Vncs   uint   `json:"vncs"`
 }
 
 type s_network_bridges struct {
@@ -401,6 +408,7 @@ func parse_data(s submission_json, isocode string) {
 	increment_vms_vcpu(s)
     increment_vms_disks(s)
     increment_vms_nics(s)
+    increment_vms_vncs(s)
 
 	increment_net_bridges(s)
 	increment_net_vlans(s)
@@ -487,6 +495,29 @@ func increment_vms_nics(s submission_json) {
 		newEntry.Nics = s.Vms[j].Nics
 		newEntry.Count = 1
 		TJSON.Vms.Nics = append(TJSON.Vms.Nics, newEntry)
+	}
+}
+
+func increment_vms_vncs(s submission_json) {
+	var found bool
+	for j, _ := range s.Vms {
+		found = false
+		for i, _ := range TJSON.Vms.Vncs {
+			if s.Vms[j].Vncs == TJSON.Vms.Vncs[i].Vncs {
+				TJSON.Vms.Vncs[i].Count++
+				found = true
+				break
+			}
+		}
+
+		if found {
+			continue
+		}
+
+		var newEntry t_vm_vncs_count
+		newEntry.Vncs = s.Vms[j].Vncs
+		newEntry.Count = 1
+		TJSON.Vms.Vncs = append(TJSON.Vms.Vncs, newEntry)
 	}
 }
 

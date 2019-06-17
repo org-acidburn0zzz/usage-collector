@@ -35,8 +35,9 @@ type output_json struct{
 	Stats map[string]interface{} `json:"stats"`
 
 }
+var OUT output_json
 
-/*func parse_data(s submission_json, isocode string) {
+func parse_data(s map[string]interface{}, isocode string) {
 
 	// Do this all within a locked mutex
 	wlock.Lock()
@@ -53,21 +54,21 @@ type output_json struct{
 		WCOUNTER++
 	}
 
-	//log.Println(TJSON)
+	//log.Println(OUT)
 
 	// Unlock the mutex now
 	wlock.Unlock()
-}*/
+}
 
 func convert_to_gigabytes(convert uint) uint {
 	return (convert / 1024 / 1024 / 1024)
 }
 
 // Where is this request coming from?
-/*func get_location(clientip string) string {
+func get_location(clientip string) string {
 	//log.Println("Checking IP: " + clientip)
 
-	db, err := geoip2.Open("GeoLite2-Country.mmdb")
+	/*db, err := geoip2.Open("GeoLite2-Country.mmdb")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,15 +79,16 @@ func convert_to_gigabytes(convert uint) uint {
 	if err != nil {
 		return ""
 	}
-	return record.Country.IsoCode
-}*/
+	return record.Country.IsoCode*/
+  return ""
+}
 
 // Getting a new submission
 func submit(rw http.ResponseWriter, req *http.Request) {
-	//decoder := json.NewDecoder(req.Body)
+	decoder := json.NewDecoder(req.Body)
 
 	// Decode the POST data json struct
-	/*var s submission_json
+	var s map[string]interface{}
 	err := decoder.Decode(&s)
 	if err != nil {
 		log.Println(err)
@@ -99,7 +101,7 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 	isocode := get_location(ip)
 
 	// Do things with the data
-	parse_data(s, isocode)*/
+	parse_data(s, isocode)
 }
 
 func readjson( path string ) {
@@ -112,22 +114,20 @@ func readjson( path string ) {
     jsfile.Close()
     //fmt.Println(_data)
     //fmt.Println("Input:", s)
-    o := parseInput(s)
-    raw, _ := json.MarshalIndent(o,"","  ")
-    //fmt.Println( "Output:", o)
-    fmt.Println( " - JSON:", string(raw) )
+    parseInput(s)
+    //raw, _ := json.MarshalIndent(OUT,"","  ")
+    //fmt.Println( "Output:", OUT)
+    //fmt.Println( string(raw) )
   }
 }
 
-func parseInput(inputs map[string]interface{}) output_json {
-  var out output_json
+func parseInput(inputs map[string]interface{}) {
   //increment the system count
-  out.Syscount = out.Syscount+1
+  OUT.Syscount = OUT.Syscount+1
   //Now start loading all the input fields and incrementing the counters in the map
   for key := range(inputs) {
-    out.Stats = addToMap( out.Stats, key, inputs[key] )
+    OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
   }
-  return out
 }
 
 func addToMap( M map[string]interface{}, key string, Val interface{}) map[string]interface{} {
@@ -153,28 +153,7 @@ func addToMap( M map[string]interface{}, key string, Val interface{}) map[string
         }
 
   case reflect.Slice:
-  	//fmt.Println("Slice", Val)
-	for _, subval := range( Val.([]interface{}) ) {
-	  //fmt.Println("subval:", subval)
-	  _type := reflect.ValueOf(subval).Kind()
-	  if _type == reflect.Map {
-            submap := subval.(map[string]interface{})
-	    //fmt.Println("submap:", submap)
-	    keys := findUniqueKey(submap)
-	    if len(keys) == 0 {
-	      fmt.Println("No Unique Keys", key, submap)
-	      M = addToMap(M, key, submap)
-	    } else {
-              fmt.Println("Got Unique Keys", key, keys, submap)
-	      for _, subKey := range(keys) {
-	        MF = addToMap(MF, subKey, submap)
-	      }
-	      M[key] = MF
-	    }
-	  } else {
-	    M = addToMap(M, key, subval)
-	  }
-        }
+	M = addSliceToMap(M, key, Val.([]interface{}) );
         return M
 
   case reflect.Bool:
@@ -230,26 +209,59 @@ func findUniqueKey( M map[string]interface{}) []string {
     //This is a slice of keys
     for _, i := range(val.([]interface{})) { out = append(out, i.(string)) }
 
-  } else if (num>0) {
+  } else if (num>=0) {
 	out = append(out, val.(string))
 
   }
   return out
 }
 
+func addSliceToMap(M map[string]interface{}, key string, Val []interface{}) map[string]interface{} {
+  //Create the optional output map
+  MF := make(map[string]interface{})
+  tmp, ok := M[key]
+  if ok { MF = tmp.(map[string]interface{}) }
+
+  for _, subval := range( Val ) {
+    //fmt.Println("subval:", subval)
+    _type := reflect.ValueOf(subval).Kind()
+    if _type == reflect.Map {
+      //List of maps - Need to create a sub-map and add them in there
+      submap := subval.(map[string]interface{})
+
+      //fmt.Println("submap:", submap)
+      keys := findUniqueKey(submap)
+      if len(keys) == 0 {
+        //fmt.Println("No Unique Keys", key, submap)
+        M = addToMap(M, key, submap)
+      } else {
+        //fmt.Println("Got Unique Keys", key, keys, submap)
+        for _, subKey := range(keys) {
+          MF = addToMap(MF, subKey, submap)
+        }
+      }
+    } else {
+      //Just a list of strings/numbers/etc - add them directly to the output map
+      M = addToMap(M, key, subval)
+    }
+  } //end loop over elements
+  if len(MF) > 0 { M[key] = MF }
+  return M;
+}
+
 func addNumberToMap(M map[string]interface{}, val int) map[string]interface{} {
   //fmt.Println("Add Number to Map:", val)
   name := strconv.Itoa(val)
-  cnum := 0
-  if num, err := M[name] ; err { cnum = num.(int) }
+  cnum := 0.0
+  if num, err := M[name] ; err { cnum = num.(float64) }
   M[name] = cnum+1
   return M
 }
 
 func addStringToMap(M map[string]interface{}, name string) map[string]interface{} {
   //fmt.Println("Add String to Map:", name)
-  cnum := 0
-  if num, err := M[name] ; err { cnum = num.(int) }
+  cnum := 0.0
+  if num, err := M[name] ; err { cnum = num.(float64) }
   M[name] = cnum+1
   return M
 }
@@ -258,97 +270,100 @@ func addBoolToMap(M map[string]interface{}, val bool) map[string]interface{} {
   //fmt.Println("Add String to Map:", name)
   name := "true"
   if !val { name = "false" }
-  cnum := 0
-  if num, err := M[name] ; err { cnum = num.(int) }
+  cnum := 0.0
+  if num, err := M[name] ; err { cnum = num.(float64) }
   M[name] = cnum+1
   return M
 }
 
-/*func addSliceToMap(M map[string]interface{}, val )
-{
-	mapslice := M[val]
-}*/
-
 // Clear out the JSON structure counters
 func zero_out_stats() {
-	//TJSON = tracking_json{}
+	OUT = output_json{}
 }
 
 // Get the latest daily file to store data
 func get_daily_filename() {
-	t := time.Now()
-	newfile := SDIR + "/" + t.Format("20060102") + ".json"
-	if newfile != DAILYFILE {
-
-		// Flush previous data to disk
-		if DAILYFILE != "" {
-			flush_json_to_disk()
-		}
-		// Timestamp has changed, lets reset our in-memory json counters structure
-		zero_out_stats()
-
-		// Set new DAILYFILE
-		DAILYFILE = newfile
-
-		// Update the latest.json symlink
-		os.Remove(SDIR + "/latest.json")
-		os.Symlink(newfile, SDIR+"/latest.json")
-	}
+  t := time.Now()
+  newfile := SDIR + "/" + t.Format("2006-01-02") + ".json"
+  if newfile != DAILYFILE {
+    // Flush previous data to disk
+    if DAILYFILE != "" {
+      flush_json_to_disk()
+    }
+    // Timestamp has changed, lets reset our in-memory json counters structure
+    zero_out_stats()
+    // Set new DAILYFILE
+    DAILYFILE = newfile
+    // Update the latest.json symlink
+    os.Remove(SDIR + "/latest.json")
+    os.Symlink(newfile, SDIR+"/latest.json")
+  }
 
 }
 
 // Load the daily file into memory
 func load_daily_file() {
-	/*get_daily_filename()
+  //Verify that the output directory exists
+  if _, err := os.Stat(SDIR); os.IsNotExist(err) {
+    err = os.MkdirAll(SDIR, 0755)
+    if err != nil { fmt.Println("[ERROR] Could not create output directory:", SDIR); os.Exit(1) }
+  }
+  get_daily_filename()
 
-	// No file yet? Lets clear out the struct
-	if _, err := os.Stat(DAILYFILE); os.IsNotExist(err) {
-		zero_out_stats()
-		return
-	}
+  // No file yet? Lets clear out the struct
+  if _, err := os.Stat(DAILYFILE); os.IsNotExist(err) {
+    zero_out_stats()
+    return
+  }
 
-	// Load the file into memory
-	dat, err := ioutil.ReadFile(DAILYFILE)
-	if err != nil {
-		log.Println(err)
-		log.Fatal("Failed loading daily file: " + DAILYFILE)
-	}
-	if err := json.Unmarshal(dat, &TJSON); err != nil {
-		log.Println(err)
-		log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
-	}*/
+  // Load the file into memory
+  dat, err := ioutil.ReadFile(DAILYFILE)
+  if err != nil {
+    log.Println(err)
+    log.Fatal("Failed loading daily file: " + DAILYFILE)
+  }
+  if err := json.Unmarshal(dat, &OUT); err != nil {
+    log.Println(err)
+    log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
+  }
 }
 
 func flush_json_to_disk() {
-	/*file, _ := json.MarshalIndent(TJSON, "", " ")
-	_ = ioutil.WriteFile(DAILYFILE, file, 0644)*/
+  file, _ := json.MarshalIndent(OUT, "", " ")
+  _ = ioutil.WriteFile(DAILYFILE, file, 0644)
+  fmt.Println("Writing to File:", DAILYFILE);
 }
 
 // Lets do it!
 func main() {
-    if len(os.Args) < 2 {
-	// Capture SIGTERM and flush JSON to disk
-	var gracefulStop = make(chan os.Signal)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
-	go func() {
-		sig := <-gracefulStop
-		log.Println("%v", sig)
-		log.Println("Caught Signal. Flushing JSON to disk")
-		flush_json_to_disk()
-		os.Exit(0)
-	}()
+  if len(os.Args) < 2 {
+    // Capture SIGTERM and flush JSON to disk
+    var gracefulStop = make(chan os.Signal)
+    signal.Notify(gracefulStop, syscall.SIGTERM)
+    signal.Notify(gracefulStop, syscall.SIGINT)
+    go func() {
+      sig := <-gracefulStop
+      log.Println("%v", sig)
+      log.Println("Caught Signal. Flushing JSON to disk")
+      flush_json_to_disk()
+      os.Exit(0)
+    }()
 
-	// Read the daily file into memory at startup
-	load_daily_file()
+    // Read the daily file into memory at startup
+    load_daily_file()
 
-	// Start our HTTP listener
-	http.HandleFunc("/submit", submit)
-	log.Fatal(http.ListenAndServe(":8082", nil))
-	} else {
-		 fmt.Println("test")
-		load_daily_file()
-    	readjson(os.Args[1])
-    	fmt.Println("finished")
-	}
+    // Start our HTTP listener
+    http.HandleFunc("/submit", submit)
+    log.Fatal(http.ListenAndServe(":8082", nil))
+
+  } else {
+    // Dev Test : Loading a list of files directly from the CLI
+    //fmt.Println("test")
+    load_daily_file()
+    for _, arg := range(os.Args[1:]) {
+      readjson(arg)
+    }
+    flush_json_to_disk()
+    //fmt.Println("finished")
+  }
 }

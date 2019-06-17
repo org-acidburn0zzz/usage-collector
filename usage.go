@@ -14,6 +14,7 @@ import (
 	"time"
 	"fmt"
 	"strconv"
+	"strings"
 	"github.com/oschwald/geoip2-golang"
 )
 
@@ -22,6 +23,7 @@ var SDIR = "/var/db/ix-stats"
 
 // What file to store current stats in
 var DAILYFILE string
+var MONTHLYFILE string
 
 // Create our mutex we use to prevent race conditions when updating
 // counters
@@ -37,8 +39,10 @@ type output_json struct{
 
 }
 var OUT output_json
+var OUT_COUNT map[string]bool
+var OUT_COUNT_MONTH map[string]bool
 
-func convert_to_gigabytes(convert uint) uint {
+func convert_to_gigabytes(convert int) int {
 	return (convert / 1024 / 1024 / 1024)
 }
 
@@ -109,6 +113,18 @@ func readjson( path string ) {
 }
 
 func parseInput(inputs map[string]interface{}, geolocation string) {
+  //First verify that the system was not already counted
+  id := inputs["system_hash"].(string)
+  if _, ok:= OUT_COUNT[id] ; ok {
+    //This ID has already been counted - do not count it again
+    return
+  } else {
+    OUT_COUNT[id] = true
+  }
+  //Now update the monthly system counter
+  if _, ok := OUT_COUNT_MONTH[id] ; !ok {
+    OUT_COUNT_MONTH[id] = true
+  }
   //increment the system count
   OUT.Syscount = OUT.Syscount+1
   if len(geolocation)>0 { 
@@ -117,6 +133,7 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
   }
   //Now start loading all the input fields and incrementing the counters in the map
   for key := range(inputs) {
+    if key=="system_hash" || key=="usage_version" { continue }
     OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
   }
 }
@@ -155,27 +172,27 @@ func addToMap( M map[string]interface{}, key string, Val interface{}) map[string
 
   case reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64:
   	//fmt.Println("INT",Val)
-  	MF = addNumberToMap(MF, Val.(int))
+  	MF = addNumberToMap(MF, Val.(int), key)
 
   case reflect.Uint, reflect.Uint8, reflect.Uint32, reflect.Uint64:
   	//fmt.Println("UINT",Val)
-  	MF = addNumberToMap(MF, int( Val.(uint) ) )
+  	MF = addNumberToMap(MF, int( Val.(uint) ), key )
 
   case reflect.Float32:
   	//fmt.Println("Float32",Val)
-  	MF = addNumberToMap(MF, int( Val.(float32)  ) )
+  	MF = addNumberToMap(MF, int( Val.(float32)  ), key )
 
   case reflect.Float64:
   	//fmt.Println("Float64",Val)
-  	MF = addNumberToMap(MF, int( Val.(float64)  ) )
+  	MF = addNumberToMap(MF, int( Val.(float64)  ), key )
 
   case reflect.Complex64:
   	//fmt.Println("Complex64",Val)
-  	//MF = addNumberToMap(MF, int( Val.(complex64)  ) )
+  	//MF = addNumberToMap(MF, int( Val.(complex64)  ), key )
 
   case reflect.Complex128:
   	//fmt.Println("Complex128",Val)
-  	//MF = addNumberToMap(MF, int( Val.(complex128)  ) )
+  	//MF = addNumberToMap(MF, int( Val.(complex128)  ), key )
 
   default:
   	fmt.Println("Default",Val, v.Kind())
@@ -240,9 +257,14 @@ func addSliceToMap(M map[string]interface{}, key string, Val []interface{}) map[
   return M;
 }
 
-func addNumberToMap(M map[string]interface{}, val int) map[string]interface{} {
+func addNumberToMap(M map[string]interface{}, val int, key string) map[string]interface{} {
   //fmt.Println("Add Number to Map:", val)
+  //Check if this number needs to be converted to GB first
   name := strconv.Itoa(val)
+  if key=="memory" || key=="capacity" || strings.HasPrefix(key, "usedby") {
+    val = convert_to_gigabytes(val);
+    name = strconv.Itoa(val)+"GB"
+  }
   cnum := 0.0
   if num, err := M[name] ; err { cnum = num.(float64) }
   M[name] = cnum+1
@@ -272,7 +294,8 @@ func zero_out_stats() {
   OUT = output_json{}
   if OUT.Country == nil {
     OUT.Country = make(map[string]float64)
-  } 
+  }
+  OUT_COUNT = make(map[string]bool)
 }
 
 // Get the latest daily file to store data
@@ -291,6 +314,12 @@ func get_daily_filename() {
     // Update the latest.json symlink
     os.Remove(SDIR + "/latest.json")
     os.Symlink(newfile, SDIR+"/latest.json")
+  }
+  //Now see if we need to rotate the monthly id file as well
+  newfile = SDIR+"/"+t.Format("2006-01")+".json"
+  if newfile != MONTHLYFILE {
+    MONTHLYFILE = newfile
+    OUT_COUNT_MONTH = make(map[string]bool)
   }
 
 }
@@ -320,12 +349,26 @@ func load_daily_file() {
     log.Println(err)
     log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
   }
+  // Now load the daily/monthly ID files
+  dat, err = ioutil.ReadFile(DAILYFILE+".id")
+  if err == nil {
+    json.Unmarshal(dat, &OUT_COUNT);
+  }
+  dat, err = ioutil.ReadFile(MONTHLYFILE+".id")
+  if err == nil {
+    json.Unmarshal(dat, &OUT_COUNT_MONTH);
+  }  
 }
 
 func flush_json_to_disk() {
   file, _ := json.MarshalIndent(OUT, "", " ")
   _ = ioutil.WriteFile(DAILYFILE, file, 0644)
   fmt.Println("Writing to File:", DAILYFILE);
+  file, _ = json.MarshalIndent(OUT_COUNT, "", " ")
+  _ = ioutil.WriteFile(DAILYFILE+".id", file, 0644)
+  file, _ = json.MarshalIndent(OUT_COUNT_MONTH, "", " ")
+  _ = ioutil.WriteFile(MONTHLYFILE+".id", file, 0644)
+  //fmt.Println( string(file))
 }
 
 // Lets do it!

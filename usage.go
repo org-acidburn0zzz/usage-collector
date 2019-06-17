@@ -12,7 +12,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
+	"fmt"
+	"strconv"
 	"github.com/oschwald/geoip2-golang"
 )
 
@@ -29,1134 +30,29 @@ var wlock sync.Mutex
 // Counter for number of increments before a write
 var WCOUNTER = 0
 
-//////////////////////////////////////////////////////////
-// Tracking JSON Structs
-//////////////////////////////////////////////////////////
+type output_json struct{
+	Syscount uint  `json:"systems"`
+	Country map[string]float64 `json:"country"`
+	Stats map[string]interface{} `json:"stats"`
 
-type t_plat_count struct {
-	Name    string
-	Version string
-	Count   uint
 }
-
-type t_service_count struct {
-	Name  string
-	Count uint
-}
-
-type t_service_share_count struct {
-	Name  string
-	Count uint
-}
-
-type t_plugin_count struct {
-	Name    string
-	Version string
-	Count   uint
-}
-
-type t_pool_vdev_count struct {
-	Vdevs uint
-	Count uint
-}
-
-type t_pool_disk_count struct {
-	Disks uint
-	Count uint
-}
-
-type t_pool_type_count struct {
-	Type  string
-	Count uint
-}
-
-type t_hw_cpus_count struct {
-	CPUs  uint
-	Count uint
-}
-
-type t_hw_memory_count struct {
-	Memory uint
-	Count  uint
-}
-
-type t_hw_nics_count struct {
-	Nics  uint
-	Count uint
-}
-
-type t_jails_count struct {
-	Release string `json:"release"`
-	Nat     uint   `json:"nat"`
-	Vnet    uint   `json:"vnet"`
-	Count   uint   `json:"count"`
-}
-
-type t_net_bridges_members_count struct {
-	Members []string
-	Mtu     uint
-	Count   uint
-}
-
-type t_net_lags_members_count struct {
-	Members []string
-	Type    string
-	Mtu     uint
-	Count   uint
-}
-
-type t_net_phys_count struct {
-	Name  string
-	Mtu   uint
-	Count uint
-}
-
-type t_net_vlans_count struct {
-	Parent string
-	Mtu    uint
-	Count  uint
-}
-
-type t_networking_count struct {
-	Bridges []t_net_bridges_members_count `json:"bridges"`
-	Laggs   []t_net_lags_members_count    `json:"lags"`
-	Phys    []t_net_phys_count            `json:"phys"`
-	Vlans   []t_net_vlans_count           `json:"vlans"`
-}
-
-type t_sys_users_count struct {
-	Localusers uint
-	Count      uint
-}
-
-type t_sys_datasets_count struct {
-	Datasets uint
-	Count    uint
-}
-
-type t_sys_snapshots_count struct {
-	Snapshots uint
-	Count     uint
-}
-
-type t_sys_zvols_count struct {
-	Zvols uint
-	Count uint
-}
-
-type t_sys struct {
-	Localusers []t_sys_users_count     `json:"localusers"`
-	Datasets   []t_sys_datasets_count  `json:"datasets"`
-	Snapshots  []t_sys_snapshots_count `json:"snapshots"`
-	Zvols      []t_sys_zvols_count     `json:"zvols"`
-}
-
-type t_vm_boot_count struct {
-	Boot  string
-	Count uint
-}
-
-type t_vm_memory_count struct {
-	Memory uint
-	Count  uint
-}
-
-type t_vm_vcpu_count struct {
-	Vcpu  uint
-	Count uint
-}
-
-type t_vm_disks_count struct {
-	Disks uint
-	Count uint
-}
-
-type t_vm_nics_count struct {
-	Nics  uint
-	Count uint
-}
-
-type t_vm_autostart_count struct {
-	Autostart bool
-	Count     uint
-}
-
-type t_vm_vncs_count struct {
-	Vncs  uint
-	Count uint
-}
-type t_vm_time_count struct {
-	Time  string
-	Count uint
-}
-
-type t_vm struct {
-	Boot   []t_vm_boot_count   `json:"localusers"`
-	Memory []t_vm_memory_count `json:"memory"`
-	Vcpu   []t_vm_vcpu_count   `json:"vcpu"`
-	Disks  []t_vm_disks_count  `json:"disks"`
-	Nics   []t_vm_nics_count   `json:"nics"`
-	Vncs   []t_vm_vncs_count   `json:"vncs"`
-	Time   []t_vm_time_count   `json:"time"`
-	Autostart   []t_vm_autostart_count   `json:"autostart"`
-}
-
-type t_country_count struct {
-	Country string
-	Count   uint
-}
-
-type tracking_json struct {
-
-	// Country Tracker
-	Country []t_country_count `json:"country"`
-
-	// Vm Tracker
-	Vms t_vm `json:"vms"`
-
-	// System Tracker
-	System t_sys `json:"system"`
-
-	// Store networking counters
-	Network t_networking_count `json:"networking"`
-
-	// Store HW counters
-	CPUs   []t_hw_cpus_count   `json:"cpus"`
-	Memory []t_hw_memory_count `json:"memory"`
-	Nics   []t_hw_nics_count   `json:"nics"`
-
-	// Store Jail counters
-	Jails []t_jails_count `json:"jails"`
-
-	// Store Platform Version number count
-	Platforms []t_plat_count `json:"platforms"`
-
-	// Store enabled services count
-	Services []t_service_count `json:"services"`
-
-	// Store service share counts
-	ServiceShares []t_service_share_count `json:"serviceshares"`
-
-	// Store plugin version/number counters
-	Plugins []t_plugin_count `json:"plugins"`
-
-	// Store vdev counters for pools
-	PoolVdevs []t_pool_vdev_count `json:"poolvdevs"`
-
-	// Store counter of pool disk numbers
-	PoolDisks []t_pool_disk_count `json:"pooldisks"`
-
-	// Counter for types of pools
-	PoolTypes []t_pool_type_count `json:"pooltype"`
-
-	// Counter for number of pools with encryption
-	PoolEncryption uint `json:"poolencryption"`
-
-	// Counter for number of pools with dedicated l2arc
-	PoolL2arc uint `json:"pooll2arc"`
-
-	// Counter for number of pools with dedicated zil
-	PoolZil uint `json:"poolzil"`
-
-	// Store the total capacity of globally managed storage
-	PoolCapacity uint `json:"poolcapacity"`
-
-	// Store the total used of globally managed storage
-	PoolUsed uint `json:"poolused"`
-
-	// Total number of system submissions
-	SystemCount uint
-
-	// Total number of pools under mgmt
-	PoolCount uint
-}
-
-var TJSON tracking_json
-
-//////////////////////////////////////////////////////////
-// Submission JSON structs
-//////////////////////////////////////////////////////////
-type s_plugins struct {
-	Name    string
-	Version string
-	Count   uint
-}
-
-type s_pools struct {
-	Type       string
-	Vdevs      uint
-	Disks      uint
-	Capacity   uint
-	Used       uint
-	Encryption bool
-	Zil        bool
-	L2arc      bool
-}
-
-type s_hw struct {
-	CPUs   uint
-	Memory uint
-	Nics   uint
-}
-
-type s_services struct {
-	Name    string `json:"name"`
-	Enabled bool   `json:"enabled"`
-}
-
-type s_shares struct {
-	Type       string `json:"type"`
-	AllowGuest bool   `json:"allowguest"`
-}
-
-type s_jails struct {
-	Nat     bool   `json:"nat"`
-	Release string `json:"release"`
-	Vnet    bool   `json:"vnet"`
-}
-
-type s_vms struct {
-	Boot   string `json:"boot"`
-	Memory uint   `json:"memory"`
-	Vcpus  uint   `json:"vcpus"`
-	Disks  uint   `json:"disks"`
-	Nics   uint   `json:"nics"`
-	Vncs   uint   `json:"vncs"`
-	Time   string `json:"time"`
-	Autostart bool `json:"autostart"`
-}
-
-type s_network_bridges struct {
-	Count   uint     `json:"Count"`
-	Members []string `json:"members"`
-	Mtu     uint     `json:"mtu"`
-}
-
-type s_network_lags struct {
-	Count   uint     `json:"Count"`
-	Members []string `json:"members"`
-	Mtu     uint     `json:"mtu"`
-	Type    string   `json:"type"`
-}
-
-type s_network_phys struct {
-	Count uint   `json:"Count"`
-	Mtu   uint   `json:"mtu"`
-	Name  string `json:"name"`
-}
-
-type s_network_vlans struct {
-	Count  uint   `json:"Count"`
-	Mtu    uint   `json:"mtu"`
-	Parent string `json:"parent"`
-}
-
-type s_network struct {
-	Bridges []s_network_bridges `json:"bridges"`
-	Laggs   []s_network_lags    `json:"lags"`
-	Phys    []s_network_phys    `json:"phys"`
-	Vlans   []s_network_vlans   `json:"vlans"`
-}
-
-type s_system struct {
-	Datasets   uint `json:"datasets"`
-	Localusers uint `json:"users"`
-	Snapshots  uint `json:"snapshots"`
-	Zvols      uint `json:"zvols"`
-}
-
-type submission_json struct {
-	Platform string
-	Version  string
-	Network  s_network    `json:"network"`
-	Jails    []s_jails    `json:"jails"`
-	Plugins  []s_plugins  `json:"plugins"`
-	Vms      []s_vms      `json:"vms"`
-	Pools    []s_pools    `json:"pools"`
-	Hardware s_hw         `json:"hardware"`
-	Services []s_services `json:"services"`
-	Shares   []s_shares   `json:"shares"`
-	System   []s_system   `json:"system"`
-}
-
-//////////////////////////////////////////////////////////
-// Parsing and counting data routines below
-//////////////////////////////////////////////////////////
-
-func parse_data(s submission_json, isocode string) {
-
-	// Do this all within a locked mutex
-	wlock.Lock()
-
-	// Check if the daily file needs to roll over
-	get_daily_filename()
-
-	// Increase total number of systems
-	TJSON.SystemCount++
-
-	// Update the country code
-	increment_country(isocode)
-
-	// Update our in-memory counters
-	increment_platform(s)
-	increment_services(s)
-	increment_service_shares(s)
-	increment_pool_vdev(s)
-	increment_pool_disks(s)
-	increment_pool_types(s)
-	increment_pool_encryption(s)
-	increment_pool_zil(s)
-	increment_pool_l2arc(s)
-	increment_pool_capacity(s)
-	increment_pool_used(s)
-
-	increment_cpus(s)
-	increment_memory(s)
-	increment_nics(s)
-
-	increment_jails(s)
-	increment_plugins(s)
-	increment_vms_boot(s)
-	increment_vms_memory(s)
-	increment_vms_vcpu(s)
-    increment_vms_disks(s)
-    increment_vms_nics(s)
-    increment_vms_autostart(s)
-	increment_vms_vncs(s)
-    increment_vms_time(s)
-
-	increment_net_bridges(s)
-	increment_net_vlans(s)
-	increment_net_lags(s)
-	increment_net_phys(s)
-
-	increment_sys_users(s)
-	increment_sys_zvols(s)
-	increment_sys_snapshots(s)
-	increment_sys_datasets(s)
-
-	// Every 20 updates, we update the JSON file on disk
-	if WCOUNTER >= 20 {
-		//log.Println("Flushing to disk")
-		flush_json_to_disk()
-		WCOUNTER = 0
-	} else {
-		WCOUNTER++
-	}
-
-	//log.Println(TJSON)
-
-	// Unlock the mutex now
-	wlock.Unlock()
-}
-
-func increment_country(isocode string) {
-	if isocode == "" {
-		return
-	}
-
-	for i, _ := range TJSON.Country {
-		if TJSON.Country[i].Country == isocode {
-			TJSON.Country[i].Count++
-			return
-		}
-	}
-	var newEntry t_country_count
-	newEntry.Country = isocode
-	newEntry.Count = 1
-	TJSON.Country = append(TJSON.Country, newEntry)
-}
-
-func increment_vms_disks(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Disks {
-			if s.Vms[j].Disks == TJSON.Vms.Disks[i].Disks {
-				TJSON.Vms.Disks[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_disks_count
-		newEntry.Disks = s.Vms[j].Disks
-		newEntry.Count = 1
-		TJSON.Vms.Disks = append(TJSON.Vms.Disks, newEntry)
-	}
-}
-
-func increment_vms_nics(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Nics {
-			if s.Vms[j].Nics == TJSON.Vms.Nics[i].Nics {
-				TJSON.Vms.Nics[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_nics_count
-		newEntry.Nics = s.Vms[j].Nics
-		newEntry.Count = 1
-		TJSON.Vms.Nics = append(TJSON.Vms.Nics, newEntry)
-	}
-}
-
-func increment_vms_autostart(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Autostart {
-			if s.Vms[j].Autostart == TJSON.Vms.Autostart[i].Autostart {
-				TJSON.Vms.Autostart[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_autostart_count
-		newEntry.Autostart = s.Vms[j].Autostart
-		newEntry.Count = 1
-		TJSON.Vms.Autostart = append(TJSON.Vms.Autostart, newEntry)
-	}
-}
-
-func increment_vms_vncs(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Vncs {
-			if s.Vms[j].Vncs == TJSON.Vms.Vncs[i].Vncs {
-				TJSON.Vms.Vncs[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_vncs_count
-		newEntry.Vncs = s.Vms[j].Vncs
-		newEntry.Count = 1
-		TJSON.Vms.Vncs = append(TJSON.Vms.Vncs, newEntry)
-	}
-}
-
-func increment_vms_time(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Time {
-			if s.Vms[j].Time == TJSON.Vms.Time[i].Time {
-				TJSON.Vms.Time[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-		var newEntry t_vm_time_count
-		newEntry.Time = s.Vms[j].Time
-		newEntry.Count = 1
-		TJSON.Vms.Time = append(TJSON.Vms.Time, newEntry)
-	}
-}
-
-func increment_vms_vcpu(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Vcpu {
-			if s.Vms[j].Vcpus == TJSON.Vms.Vcpu[i].Vcpu {
-				TJSON.Vms.Vcpu[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_vcpu_count
-		newEntry.Vcpu = s.Vms[j].Vcpus
-		newEntry.Count = 1
-		TJSON.Vms.Vcpu = append(TJSON.Vms.Vcpu, newEntry)
-	}
-}
-
-func increment_vms_boot(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Boot {
-			if s.Vms[j].Boot == TJSON.Vms.Boot[i].Boot {
-				TJSON.Vms.Boot[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_boot_count
-		newEntry.Boot = s.Vms[j].Boot
-		newEntry.Count = 1
-		TJSON.Vms.Boot = append(TJSON.Vms.Boot, newEntry)
-	}
-}
-
-func increment_vms_memory(s submission_json) {
-	var found bool
-	for j, _ := range s.Vms {
-		found = false
-		for i, _ := range TJSON.Vms.Memory {
-			if s.Vms[j].Memory == TJSON.Vms.Memory[i].Memory {
-				TJSON.Vms.Memory[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_vm_memory_count
-		newEntry.Memory = s.Vms[j].Memory
-		newEntry.Count = 1
-		TJSON.Vms.Memory = append(TJSON.Vms.Memory, newEntry)
-	}
-}
-
-func increment_sys_snapshots(s submission_json) {
-	if len(s.System) <= 0 {
-		return
-	}
-	var snapcount uint
-	// Snapshots vary wildly, lets get some rough approx
-	if s.System[0].Snapshots > 10000 {
-		snapcount = 10000
-	} else if s.System[0].Snapshots > 5000 {
-		snapcount = 5000
-	} else if s.System[0].Snapshots > 1000 {
-		snapcount = 5000
-	} else if s.System[0].Snapshots > 500 {
-		snapcount = 500
-	} else if s.System[0].Snapshots > 100 {
-		snapcount = 100
-	} else if s.System[0].Snapshots > 50 {
-		snapcount = 50
-	} else if s.System[0].Snapshots > 25 {
-		snapcount = 25
-	} else {
-		snapcount = 10
-	}
-
-	for i, _ := range TJSON.System.Snapshots {
-		if TJSON.System.Snapshots[i].Snapshots == snapcount {
-			TJSON.System.Snapshots[i].Count++
-			return
-		}
-	}
-	var newEntry t_sys_snapshots_count
-	newEntry.Snapshots = snapcount
-	newEntry.Count = 1
-	TJSON.System.Snapshots = append(TJSON.System.Snapshots, newEntry)
-}
-
-func increment_sys_zvols(s submission_json) {
-	if len(s.System) <= 0 {
-		return
-	}
-	for i, _ := range TJSON.System.Zvols {
-		if TJSON.System.Zvols[i].Zvols == s.System[0].Zvols {
-			TJSON.System.Zvols[i].Count++
-			return
-		}
-	}
-	var newEntry t_sys_zvols_count
-	newEntry.Zvols = s.System[0].Zvols
-	newEntry.Count = 1
-	TJSON.System.Zvols = append(TJSON.System.Zvols, newEntry)
-}
-
-func increment_sys_datasets(s submission_json) {
-	if len(s.System) <= 0 {
-		return
-	}
-	for i, _ := range TJSON.System.Datasets {
-		if TJSON.System.Datasets[i].Datasets == s.System[0].Datasets {
-			TJSON.System.Datasets[i].Count++
-			return
-		}
-	}
-	var newEntry t_sys_datasets_count
-	newEntry.Datasets = s.System[0].Datasets
-	newEntry.Count = 1
-	TJSON.System.Datasets = append(TJSON.System.Datasets, newEntry)
-}
-
-func increment_sys_users(s submission_json) {
-	if len(s.System) <= 0 {
-		return
-	}
-	for i, _ := range TJSON.System.Localusers {
-		if TJSON.System.Localusers[i].Localusers == s.System[0].Localusers {
-			TJSON.System.Localusers[i].Count++
-			return
-		}
-	}
-	var newEntry t_sys_users_count
-	newEntry.Localusers = s.System[0].Localusers
-	newEntry.Count = 1
-	TJSON.System.Localusers = append(TJSON.System.Localusers, newEntry)
-}
-
-func increment_plugins(s submission_json) {
-	var found bool
-	for j, _ := range s.Plugins {
-		found = false
-		for i, _ := range TJSON.Plugins {
-			if TJSON.Plugins[i].Name == s.Plugins[j].Name && TJSON.Plugins[i].Version == s.Plugins[j].Version {
-				TJSON.Plugins[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_plugin_count
-		newEntry.Name = s.Plugins[j].Name
-		newEntry.Version = s.Plugins[j].Version
-		newEntry.Count = 1
-		TJSON.Plugins = append(TJSON.Plugins, newEntry)
-	}
-}
-
-func increment_net_vlans(s submission_json) {
-	var found bool
-	for j, _ := range s.Network.Vlans {
-		found = false
-		for i, _ := range TJSON.Network.Vlans {
-			if (s.Network.Vlans[j].Mtu == TJSON.Network.Vlans[i].Mtu) && (s.Network.Vlans[j].Parent == TJSON.Network.Vlans[i].Parent) {
-				TJSON.Network.Vlans[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_net_vlans_count
-		newEntry.Mtu = s.Network.Vlans[j].Mtu
-		newEntry.Parent = s.Network.Vlans[j].Parent
-		newEntry.Count = 1
-		TJSON.Network.Vlans = append(TJSON.Network.Vlans, newEntry)
-	}
-}
-
-func increment_net_phys(s submission_json) {
-	var found bool
-	for j, _ := range s.Network.Phys {
-		found = false
-		for i, _ := range TJSON.Network.Phys {
-			if (s.Network.Phys[j].Mtu == TJSON.Network.Phys[i].Mtu) && (s.Network.Phys[j].Name == TJSON.Network.Phys[i].Name) {
-				TJSON.Network.Phys[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_net_phys_count
-		newEntry.Mtu = s.Network.Phys[j].Mtu
-		newEntry.Name = s.Network.Phys[j].Name
-		newEntry.Count = 1
-		TJSON.Network.Phys = append(TJSON.Network.Phys, newEntry)
-	}
-}
-
-func increment_net_lags(s submission_json) {
-	var found bool
-	for j, _ := range s.Network.Laggs {
-		found = false
-		for i, _ := range TJSON.Network.Laggs {
-			if reflect.DeepEqual(TJSON.Network.Laggs[i].Members, s.Network.Laggs[j].Members) && (s.Network.Laggs[j].Mtu == TJSON.Network.Laggs[i].Mtu) && (s.Network.Laggs[j].Type == TJSON.Network.Laggs[i].Type) {
-				TJSON.Network.Laggs[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_net_lags_members_count
-		newEntry.Members = s.Network.Laggs[j].Members
-		newEntry.Mtu = s.Network.Laggs[j].Mtu
-		newEntry.Type = s.Network.Laggs[j].Type
-		newEntry.Count = 1
-		TJSON.Network.Laggs = append(TJSON.Network.Laggs, newEntry)
-	}
-}
-
-func increment_net_bridges(s submission_json) {
-	var found bool
-	for j, _ := range s.Network.Bridges {
-		found = false
-		for i, _ := range TJSON.Network.Bridges {
-			if reflect.DeepEqual(TJSON.Network.Bridges[i].Members, s.Network.Bridges[j].Members) && s.Network.Bridges[j].Mtu == TJSON.Network.Bridges[i].Mtu {
-				TJSON.Network.Bridges[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_net_bridges_members_count
-		newEntry.Members = s.Network.Bridges[j].Members
-		newEntry.Mtu = s.Network.Bridges[j].Mtu
-		newEntry.Count = 1
-		TJSON.Network.Bridges = append(TJSON.Network.Bridges, newEntry)
-	}
-}
-
-func increment_jails(s submission_json) {
-	var found bool
-	for j, _ := range s.Jails {
-		found = false
-		for i, _ := range TJSON.Jails {
-			if TJSON.Jails[i].Release == s.Jails[j].Release {
-				TJSON.Jails[i].Count++
-				if s.Jails[j].Vnet {
-					TJSON.Jails[i].Vnet++
-				}
-				if s.Jails[j].Nat {
-					TJSON.Jails[i].Nat++
-				}
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_jails_count
-		newEntry.Release = s.Jails[j].Release
-		newEntry.Count = 1
-		if s.Jails[j].Vnet {
-			newEntry.Vnet = 1
-		}
-		if s.Jails[j].Nat {
-			newEntry.Nat = 1
-		}
-		TJSON.Jails = append(TJSON.Jails, newEntry)
-	}
-}
-
-func increment_nics(s submission_json) {
-	var found bool
-	found = false
-	for i, _ := range TJSON.Nics {
-		found = false
-		if TJSON.Nics[i].Nics == s.Hardware.Nics {
-			TJSON.Nics[i].Count++
-			found = true
-			break
-		}
-	}
-
-	if ( found ) {
-		return
-	}
-
-	var newEntry t_hw_nics_count
-	newEntry.Nics = s.Hardware.Nics
-	newEntry.Count = 1
-	TJSON.Nics = append(TJSON.Nics, newEntry)
-}
+var OUT output_json
 
 func convert_to_gigabytes(convert uint) uint {
 	return (convert / 1024 / 1024 / 1024)
 }
 
-func increment_memory(s submission_json) {
-	var found bool
-	found = false
-
-	memGB := convert_to_gigabytes(s.Hardware.Memory)
-
-	for i, _ := range TJSON.Memory {
-		found = false
-		if TJSON.Memory[i].Memory == memGB {
-			TJSON.Memory[i].Count++
-			found = true
-			break
-		}
-
-	}
-
-	if found {
-		return
-	}
-
-	var newEntry t_hw_memory_count
-	newEntry.Memory = memGB
-	newEntry.Count = 1
-	TJSON.Memory = append(TJSON.Memory, newEntry)
-}
-
-func increment_cpus(s submission_json) {
-	var found bool
-	found = false
-
-	for i, _ := range TJSON.CPUs {
-		found = false
-		if TJSON.CPUs[i].CPUs == s.Hardware.CPUs {
-			TJSON.CPUs[i].Count++
-			found = true
-			break
-		}
-	}
-
-	if ( found ) {
-		return
-	}
-
-	var newEntry t_hw_cpus_count
-	newEntry.CPUs = s.Hardware.CPUs
-	newEntry.Count = 1
-	TJSON.CPUs = append(TJSON.CPUs, newEntry)
-}
-
-func increment_pool_used(s submission_json) {
-	for j, _ := range s.Pools {
-		if s.Pools[j].Used > 0 {
-			TJSON.PoolUsed = TJSON.PoolUsed + s.Pools[j].Used
-		}
-	}
-}
-
-func increment_pool_capacity(s submission_json) {
-	for j, _ := range s.Pools {
-		if s.Pools[j].Capacity > 0 {
-			sizeGB := convert_to_gigabytes(s.Pools[j].Capacity)
-			TJSON.PoolCapacity = TJSON.PoolCapacity + sizeGB
-		}
-	}
-}
-
-func increment_pool_encryption(s submission_json) {
-	for j, _ := range s.Pools {
-		if s.Pools[j].Encryption {
-			TJSON.PoolEncryption++
-		}
-	}
-}
-
-func increment_pool_zil(s submission_json) {
-	for j, _ := range s.Pools {
-		if s.Pools[j].Zil {
-			TJSON.PoolZil++
-		}
-	}
-}
-
-func increment_pool_l2arc(s submission_json) {
-	for j, _ := range s.Pools {
-		if s.Pools[j].L2arc {
-			TJSON.PoolL2arc++
-		}
-	}
-}
-
-func increment_pool_types(s submission_json) {
-	var found bool
-	for j, _ := range s.Pools {
-		TJSON.PoolCount++
-		found = false
-		for i, _ := range TJSON.PoolTypes {
-			if TJSON.PoolTypes[i].Type == s.Pools[j].Type {
-				TJSON.PoolTypes[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_pool_type_count
-		newEntry.Type = s.Pools[j].Type
-		newEntry.Count = 1
-		TJSON.PoolTypes = append(TJSON.PoolTypes, newEntry)
-	}
-}
-
-func increment_pool_disks(s submission_json) {
-	var found bool
-	for j, _ := range s.Pools {
-		found = false
-		for i, _ := range TJSON.PoolDisks {
-			if TJSON.PoolDisks[i].Disks == s.Pools[j].Disks {
-				TJSON.PoolDisks[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_pool_disk_count
-		newEntry.Disks = s.Pools[j].Disks
-		newEntry.Count = 1
-		TJSON.PoolDisks = append(TJSON.PoolDisks, newEntry)
-	}
-}
-
-func increment_pool_vdev(s submission_json) {
-	var found bool
-	for j, _ := range s.Pools {
-		found = false
-		for i, _ := range TJSON.PoolVdevs {
-			if TJSON.PoolVdevs[i].Vdevs == s.Pools[j].Vdevs {
-				TJSON.PoolVdevs[i].Count++
-				found = true
-				break
-			}
-		}
-
-		if found {
-			continue
-		}
-
-		var newEntry t_pool_vdev_count
-		newEntry.Vdevs = s.Pools[j].Vdevs
-		newEntry.Count = 1
-		TJSON.PoolVdevs = append(TJSON.PoolVdevs, newEntry)
-	}
-}
-
-func increment_platform(s submission_json) {
-	for i, _ := range TJSON.Platforms {
-		if TJSON.Platforms[i].Name == s.Platform && TJSON.Platforms[i].Version == s.Version {
-			TJSON.Platforms[i].Count++
-			return
-		}
-	}
-	var newEntry t_plat_count
-	newEntry.Name = s.Platform
-	newEntry.Version = s.Version
-	newEntry.Count = 1
-	TJSON.Platforms = append(TJSON.Platforms, newEntry)
-}
-
-func increment_services(s submission_json) {
-	var found bool
-	for j, _ := range s.Services {
-		found = false
-		for i, _ := range TJSON.Services {
-			if TJSON.Services[i].Name == s.Services[j].Name {
-				found = true
-				if s.Services[j].Enabled {
-					TJSON.Services[i].Count++
-				}
-				break
-			}
-		}
-		// Found and incremented this particular service
-		if found || !s.Services[j].Enabled {
-			continue
-		}
-		var newEntry t_service_count
-		newEntry.Name = s.Services[j].Name
-		if !s.Services[j].Enabled {
-			newEntry.Count = 0
-		} else {
-			newEntry.Count = 1
-		}
-		TJSON.Services = append(TJSON.Services, newEntry)
-	}
-}
-
-func increment_service_shares(s submission_json) {
-	var found bool
-	for j, _ := range s.Shares {
-		found = false
-		for i, _ := range TJSON.ServiceShares {
-			//log.Println(s.Services[j].Name + " Shares:" + strconv.Itoa(s.Services[j].Shares))
-			if TJSON.ServiceShares[i].Name == s.Shares[j].Type {
-				TJSON.ServiceShares[i].Count++
-				found = true
-				break
-			}
-		}
-		// Found and incremented this particular service
-		if found {
-			continue
-		}
-		var newEntry t_service_share_count
-		newEntry.Name = s.Shares[j].Type
-		newEntry.Count = 1
-		TJSON.ServiceShares = append(TJSON.ServiceShares, newEntry)
-	}
-}
-
 // Where is this request coming from?
 func get_location(clientip string) string {
-	//log.Println("Checking IP: " + clientip)
+  //log.Println("Checking IP: " + clientip)
+  db, err := geoip2.Open("GeoLite2-Country.mmdb")
+  if err != nil { log.Fatal(err) }
+  defer db.Close()
 
-	db, err := geoip2.Open("GeoLite2-Country.mmdb")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	ip := net.ParseIP(clientip)
-	record, err := db.Country(ip)
-	if err != nil {
-		return ""
-	}
-	return record.Country.IsoCode
+  ip := net.ParseIP(clientip)
+  record, err := db.Country(ip)
+  if err != nil { return "" }
+  return record.Country.IsoCode
 }
 
 // Getting a new submission
@@ -1164,7 +60,7 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 
 	// Decode the POST data json struct
-	var s submission_json
+	var s map[string]interface{}
 	err := decoder.Decode(&s)
 	if err != nil {
 		log.Println(err)
@@ -1176,84 +72,292 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 	ip := req.Header.Get("X-Forwarded-For")
 	isocode := get_location(ip)
 
+	// Do this all within a locked mutex
+	wlock.Lock()
+	// Check if the daily file needs to roll over
+	get_daily_filename()
+	// Every 20 updates, we update the JSON file on disk
+	if WCOUNTER >= 20 {
+		//log.Println("Flushing to disk")
+		flush_json_to_disk()
+		WCOUNTER = 0
+	} else {
+		WCOUNTER++
+	}
+	//log.Println(OUT)
+	// Unlock the mutex now
+	wlock.Unlock()
 	// Do things with the data
-	parse_data(s, isocode)
+	parseInput(s, isocode)
+}
+
+func readjson( path string ) {
+   jsfile, err := os.Open(path)
+   if err == nil {
+    _data, _ := ioutil.ReadAll(jsfile);
+    var s map[string]interface{}
+
+    json.Unmarshal(_data, &s)
+    jsfile.Close()
+    //fmt.Println(_data)
+    //fmt.Println("Input:", s)
+    parseInput(s,"LOCALTEST")
+    //raw, _ := json.MarshalIndent(OUT,"","  ")
+    //fmt.Println( "Output:", OUT)
+    //fmt.Println( string(raw) )
+  }
+}
+
+func parseInput(inputs map[string]interface{}, geolocation string) {
+  //increment the system count
+  OUT.Syscount = OUT.Syscount+1
+  if len(geolocation)>0 { 
+    cnum := OUT.Country[geolocation]
+    OUT.Country[geolocation] = cnum+1
+  }
+  //Now start loading all the input fields and incrementing the counters in the map
+  for key := range(inputs) {
+    OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
+  }
+}
+
+func addToMap( M map[string]interface{}, key string, Val interface{}) map[string]interface{} {
+  //fmt.Println("Add To Map", key, Val)
+  v := reflect.ValueOf(Val)
+  
+  if M == nil {
+    M = make(map[string]interface{})
+  }
+  MF := make(map[string]interface{})
+  tmp, ok := M[key]
+  if ok { MF = tmp.(map[string]interface{}) }
+
+  switch v.Kind(){
+  case reflect.Invalid:
+      return M
+
+  case reflect.Map:
+  	//fmt.Println("Map:", Val)
+        sm := Val.(map[string]interface{})
+  	for field := range(sm){
+  	  MF = addToMap(MF, field, sm[field])
+        }
+
+  case reflect.Slice:
+	M = addSliceToMap(M, key, Val.([]interface{}) );
+        return M
+
+  case reflect.Bool:
+	MF = addBoolToMap(MF, Val.(bool))
+  case reflect.String:
+  	//fmt.Println("String",Val)
+  	MF = addStringToMap(MF, Val.(string))
+
+  case reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64:
+  	//fmt.Println("INT",Val)
+  	MF = addNumberToMap(MF, Val.(int))
+
+  case reflect.Uint, reflect.Uint8, reflect.Uint32, reflect.Uint64:
+  	//fmt.Println("UINT",Val)
+  	MF = addNumberToMap(MF, int( Val.(uint) ) )
+
+  case reflect.Float32:
+  	//fmt.Println("Float32",Val)
+  	MF = addNumberToMap(MF, int( Val.(float32)  ) )
+
+  case reflect.Float64:
+  	//fmt.Println("Float64",Val)
+  	MF = addNumberToMap(MF, int( Val.(float64)  ) )
+
+  case reflect.Complex64:
+  	//fmt.Println("Complex64",Val)
+  	//MF = addNumberToMap(MF, int( Val.(complex64)  ) )
+
+  case reflect.Complex128:
+  	//fmt.Println("Complex128",Val)
+  	//MF = addNumberToMap(MF, int( Val.(complex128)  ) )
+
+  default:
+  	fmt.Println("Default",Val, v.Kind())
+  }
+  if len(MF) == 0 { fmt.Println("[UNKNOWN]", key, Val) }
+  M[key] = MF
+  return M
+}
+
+func findUniqueKey( M map[string]interface{}) []string {
+  priority := []string{"name","release", "members", "type"}
+  val, ok := M[priority[0]]
+  num := 0
+  for !ok && (num < 3) {
+	num = num+1
+	val, ok = M[priority[num]]
+  }
+  var out []string
+  if !ok {
+    return out 
+  } else if (num == 2) {
+    //This is a slice of keys
+    for _, i := range(val.([]interface{})) { out = append(out, i.(string)) }
+
+  } else if (num>=0) {
+	out = append(out, val.(string))
+
+  }
+  return out
+}
+
+func addSliceToMap(M map[string]interface{}, key string, Val []interface{}) map[string]interface{} {
+  //Create the optional output map
+  MF := make(map[string]interface{})
+  tmp, ok := M[key]
+  if ok { MF = tmp.(map[string]interface{}) }
+
+  for _, subval := range( Val ) {
+    //fmt.Println("subval:", subval)
+    _type := reflect.ValueOf(subval).Kind()
+    if _type == reflect.Map {
+      //List of maps - Need to create a sub-map and add them in there
+      submap := subval.(map[string]interface{})
+
+      //fmt.Println("submap:", submap)
+      keys := findUniqueKey(submap)
+      if len(keys) == 0 {
+        //fmt.Println("No Unique Keys", key, submap)
+        M = addToMap(M, key, submap)
+      } else {
+        //fmt.Println("Got Unique Keys", key, keys, submap)
+        for _, subKey := range(keys) {
+          MF = addToMap(MF, subKey, submap)
+        }
+      }
+    } else {
+      //Just a list of strings/numbers/etc - add them directly to the output map
+      M = addToMap(M, key, subval)
+    }
+  } //end loop over elements
+  if len(MF) > 0 { M[key] = MF }
+  return M;
+}
+
+func addNumberToMap(M map[string]interface{}, val int) map[string]interface{} {
+  //fmt.Println("Add Number to Map:", val)
+  name := strconv.Itoa(val)
+  cnum := 0.0
+  if num, err := M[name] ; err { cnum = num.(float64) }
+  M[name] = cnum+1
+  return M
+}
+
+func addStringToMap(M map[string]interface{}, name string) map[string]interface{} {
+  //fmt.Println("Add String to Map:", name)
+  cnum := 0.0
+  if num, err := M[name] ; err { cnum = num.(float64) }
+  M[name] = cnum+1
+  return M
+}
+
+func addBoolToMap(M map[string]interface{}, val bool) map[string]interface{} {
+  //fmt.Println("Add String to Map:", name)
+  name := "true"
+  if !val { name = "false" }
+  cnum := 0.0
+  if num, err := M[name] ; err { cnum = num.(float64) }
+  M[name] = cnum+1
+  return M
 }
 
 // Clear out the JSON structure counters
 func zero_out_stats() {
-	TJSON = tracking_json{}
+  OUT = output_json{}
+  if OUT.Country == nil {
+    OUT.Country = make(map[string]float64)
+  } 
 }
 
 // Get the latest daily file to store data
 func get_daily_filename() {
-	t := time.Now()
-	newfile := SDIR + "/" + t.Format("20060102") + ".json"
-	if newfile != DAILYFILE {
-
-		// Flush previous data to disk
-		if DAILYFILE != "" {
-			flush_json_to_disk()
-		}
-		// Timestamp has changed, lets reset our in-memory json counters structure
-		zero_out_stats()
-
-		// Set new DAILYFILE
-		DAILYFILE = newfile
-
-		// Update the latest.json symlink
-		os.Remove(SDIR + "/latest.json")
-		os.Symlink(newfile, SDIR+"/latest.json")
-	}
+  t := time.Now()
+  newfile := SDIR + "/" + t.Format("2006-01-02") + ".json"
+  if newfile != DAILYFILE {
+    // Flush previous data to disk
+    if DAILYFILE != "" {
+      flush_json_to_disk()
+    }
+    // Timestamp has changed, lets reset our in-memory json counters structure
+    zero_out_stats()
+    // Set new DAILYFILE
+    DAILYFILE = newfile
+    // Update the latest.json symlink
+    os.Remove(SDIR + "/latest.json")
+    os.Symlink(newfile, SDIR+"/latest.json")
+  }
 
 }
 
 // Load the daily file into memory
 func load_daily_file() {
-	get_daily_filename()
+  //Verify that the output directory exists
+  if _, err := os.Stat(SDIR); os.IsNotExist(err) {
+    err = os.MkdirAll(SDIR, 0755)
+    if err != nil { fmt.Println("[ERROR] Could not create output directory:", SDIR); os.Exit(1) }
+  }
+  get_daily_filename()
 
-	// No file yet? Lets clear out the struct
-	if _, err := os.Stat(DAILYFILE); os.IsNotExist(err) {
-		zero_out_stats()
-		return
-	}
+  // No file yet? Lets clear out the struct
+  if _, err := os.Stat(DAILYFILE); os.IsNotExist(err) {
+    zero_out_stats()
+    return
+  }
 
-	// Load the file into memory
-	dat, err := ioutil.ReadFile(DAILYFILE)
-	if err != nil {
-		log.Println(err)
-		log.Fatal("Failed loading daily file: " + DAILYFILE)
-	}
-	if err := json.Unmarshal(dat, &TJSON); err != nil {
-		log.Println(err)
-		log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
-	}
+  // Load the file into memory
+  dat, err := ioutil.ReadFile(DAILYFILE)
+  if err != nil {
+    log.Println(err)
+    log.Fatal("Failed loading daily file: " + DAILYFILE)
+  }
+  if err := json.Unmarshal(dat, &OUT); err != nil {
+    log.Println(err)
+    log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
+  }
 }
 
 func flush_json_to_disk() {
-	file, _ := json.MarshalIndent(TJSON, "", " ")
-	_ = ioutil.WriteFile(DAILYFILE, file, 0644)
+  file, _ := json.MarshalIndent(OUT, "", " ")
+  _ = ioutil.WriteFile(DAILYFILE, file, 0644)
+  fmt.Println("Writing to File:", DAILYFILE);
 }
 
 // Lets do it!
 func main() {
+  if len(os.Args) < 2 {
+    // Capture SIGTERM and flush JSON to disk
+    var gracefulStop = make(chan os.Signal)
+    signal.Notify(gracefulStop, syscall.SIGTERM)
+    signal.Notify(gracefulStop, syscall.SIGINT)
+    go func() {
+      sig := <-gracefulStop
+      log.Println("%v", sig)
+      log.Println("Caught Signal. Flushing JSON to disk")
+      flush_json_to_disk()
+      os.Exit(0)
+    }()
 
-	// Capture SIGTERM and flush JSON to disk
-	var gracefulStop = make(chan os.Signal)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
-	go func() {
-		sig := <-gracefulStop
-		log.Println("%v", sig)
-		log.Println("Caught Signal. Flushing JSON to disk")
-		flush_json_to_disk()
-		os.Exit(0)
-	}()
+    // Read the daily file into memory at startup
+    load_daily_file()
 
-	// Read the daily file into memory at startup
-	load_daily_file()
+    // Start our HTTP listener
+    http.HandleFunc("/submit", submit)
+    log.Fatal(http.ListenAndServe(":8082", nil))
 
-	// Start our HTTP listener
-	http.HandleFunc("/submit", submit)
-	log.Fatal(http.ListenAndServe(":8082", nil))
+  } else {
+    // Dev Test : Loading a list of files directly from the CLI
+    //fmt.Println("test")
+    load_daily_file()
+    for _, arg := range(os.Args[1:]) {
+      readjson(arg)
+    }
+    flush_json_to_disk()
+    //fmt.Println("finished")
+  }
 }

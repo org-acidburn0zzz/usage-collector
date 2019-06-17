@@ -1,4 +1,5 @@
 {
+  "system_hash" : "somethingrandom",
   "hardware": {
     "cpus": 1,
     "memory": 6399963136,
@@ -22,17 +23,17 @@
     },
     {
       "nat": true,
-      "release": "11.2-RELEASE-p9",
+      "release": "11.2-RELEASE-p8",
       "vnet": true
     },
     {
       "nat": true,
-      "release": "11.2-RELEASE-p9",
+      "release": "11.2-RELEASE-p8",
       "vnet": true
     },
     {
       "nat": false,
-      "release": "11.2-RELEASE-p9",
+      "release": "11.2-RELEASE-p7",
       "vnet": false
     }
   ],

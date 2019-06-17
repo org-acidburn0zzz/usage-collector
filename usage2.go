@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	//"net"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,7 +14,7 @@ import (
 	"time"
 	"fmt"
 	"strconv"
-	//"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/geoip2-golang"
 )
 
 // Global vars
@@ -68,7 +68,7 @@ func convert_to_gigabytes(convert uint) uint {
 func get_location(clientip string) string {
 	//log.Println("Checking IP: " + clientip)
 
-	/*db, err := geoip2.Open("GeoLite2-Country.mmdb")
+	db, err := geoip2.Open("GeoLite2-Country.mmdb")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,8 +79,8 @@ func get_location(clientip string) string {
 	if err != nil {
 		return ""
 	}
-	return record.Country.IsoCode*/
-  return ""
+	return record.Country.IsoCode
+  //return ""
 }
 
 // Getting a new submission

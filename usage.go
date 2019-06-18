@@ -118,16 +118,17 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
   if tmp, ok := inputs["system_hash"] ; ok {
     id = tmp.(string)
   }
-  
-  if _, ok:= OUT_COUNT[id] ; ok {
-    //This ID has already been counted - do not count it again
-    return
-  } else {
-    OUT_COUNT[id] = true
-  }
-  //Now update the monthly system counter
-  if _, ok := OUT_COUNT_MONTH[id] ; !ok {
-    OUT_COUNT_MONTH[id] = true
+  if id != "" {
+    if _, ok:= OUT_COUNT[id] ; ok {
+      //This ID has already been counted - do not count it again
+      return
+    } else {
+      OUT_COUNT[id] = true
+    }
+    //Now update the monthly system counter
+    if _, ok := OUT_COUNT_MONTH[id] ; !ok {
+      OUT_COUNT_MONTH[id] = true
+    }
   }
   //increment the system count
   OUT.Syscount = OUT.Syscount+1

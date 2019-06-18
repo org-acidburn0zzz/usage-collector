@@ -114,7 +114,11 @@ func readjson( path string ) {
 
 func parseInput(inputs map[string]interface{}, geolocation string) {
   //First verify that the system was not already counted
-  id := inputs["system_hash"].(string)
+  id := ""
+  if tmp, ok := inputs["system_hash"] ; ok {
+    id = tmp.(string)
+  }
+  
   if _, ok:= OUT_COUNT[id] ; ok {
     //This ID has already been counted - do not count it again
     return

@@ -35,6 +35,8 @@ var WCOUNTER = 0
 type output_json struct{
 	Syscount uint  `json:"systems"`
 	Country map[string]float64 `json:"country"`
+	Capacity float64 `json:"total_capacity_gb"`
+	Disks uint64 `json:"total_disks"`
 	Stats map[string]interface{} `json:"stats"`
 
 }
@@ -134,9 +136,9 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
         if key=="system_hash" || key=="usage_version" { continue }
         OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
       }
-
+      OUT = get_storage_totals(OUT, inputs);
     }
-    // DAILY STATS OBJECT
+    // MONTHLY STATS OBJECT
     if _, ok:= OUT_COUNT_MONTH[id] ; !ok {
       OUT_COUNT_MONTH[id] = true
       //increment the system count
@@ -150,11 +152,27 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
         if key=="system_hash" || key=="usage_version" { continue }
         OUT_MONTH.Stats = addToMap( OUT_MONTH.Stats, key, inputs[key] )
       }
-
+      OUT_MONTH = get_storage_totals(OUT_MONTH, inputs);
     }
 
   } //end check for non-empty ID
   
+}
+
+func get_storage_totals( OutS output_json, IN map[string]interface{}) output_json {
+  // pools -> [] -> (capacity/disks)
+  if list, ok := IN["pools"] ; ok {
+
+    for _, obj := range(list.([]interface{})) {
+      if val, ok2 := obj.(map[string]interface{})["capacity"] ; ok2 {
+        OutS.Capacity += float64( convert_to_gigabytes( int( val.(float64) ) ) );
+      }
+      if val, ok2 := obj.(map[string]interface{})["disks"] ; ok2 {
+        OutS.Disks += uint64(val.(float64));
+      }
+    }
+  }
+  return OutS
 }
 
 func addToMap( M map[string]interface{}, key string, Val interface{}) map[string]interface{} {

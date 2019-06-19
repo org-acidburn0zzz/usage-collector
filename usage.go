@@ -115,7 +115,7 @@ func readjson( path string ) {
 
 func parseInput(inputs map[string]interface{}, geolocation string) {
   //First verify that the system was not already counted
-  id := "unknown"
+  id := ""
   if tmp, ok := inputs["system_hash"] ; ok {
     id = tmp.(string)
   }
@@ -415,9 +415,9 @@ func load_monthly_file() {
 }
 
 func flush_json_to_disk() {
+  fmt.Println("Writing to Files:", DAILYFILE, MONTHLYFILE);
   file, _ := json.MarshalIndent(OUT, "", " ")
   _ = ioutil.WriteFile(DAILYFILE, file, 0644)
-  fmt.Println("Writing to File:", DAILYFILE);
   file, _ = json.MarshalIndent(OUT_MONTH, "", " ")
   _ = ioutil.WriteFile(MONTHLYFILE, file, 0644)
   file, _ = json.MarshalIndent(OUT_COUNT, "", " ")

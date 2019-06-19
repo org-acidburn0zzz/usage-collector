@@ -40,6 +40,7 @@ type output_json struct{
 }
 var OUT output_json
 var OUT_COUNT map[string]bool
+var OUT_MONTH output_json
 var OUT_COUNT_MONTH map[string]bool
 
 func convert_to_gigabytes(convert int) int {
@@ -114,33 +115,46 @@ func readjson( path string ) {
 
 func parseInput(inputs map[string]interface{}, geolocation string) {
   //First verify that the system was not already counted
-  id := ""
+  id := "unknown"
   if tmp, ok := inputs["system_hash"] ; ok {
     id = tmp.(string)
   }
   if id != "" {
-    if _, ok:= OUT_COUNT[id] ; ok {
-      //This ID has already been counted - do not count it again
-      return
-    } else {
+    // DAILY STATS OBJECT
+    if _, ok:= OUT_COUNT[id] ; !ok {
       OUT_COUNT[id] = true
+      //increment the system count
+      OUT.Syscount = OUT.Syscount+1
+      if len(geolocation)>0 { 
+        cnum := OUT.Country[geolocation]
+        OUT.Country[geolocation] = cnum+1
+      }
+      //Now start loading all the input fields and incrementing the counters in the map
+      for key := range(inputs) {
+        if key=="system_hash" || key=="usage_version" { continue }
+        OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
+      }
+
     }
-    //Now update the monthly system counter
-    if _, ok := OUT_COUNT_MONTH[id] ; !ok {
+    // DAILY STATS OBJECT
+    if _, ok:= OUT_COUNT_MONTH[id] ; !ok {
       OUT_COUNT_MONTH[id] = true
+      //increment the system count
+      OUT_MONTH.Syscount = OUT_MONTH.Syscount+1
+      if len(geolocation)>0 { 
+        cnum := OUT_MONTH.Country[geolocation]
+        OUT_MONTH.Country[geolocation] = cnum+1
+      }
+      //Now start loading all the input fields and incrementing the counters in the map
+      for key := range(inputs) {
+        if key=="system_hash" || key=="usage_version" { continue }
+        OUT_MONTH.Stats = addToMap( OUT_MONTH.Stats, key, inputs[key] )
+      }
+
     }
-  }
-  //increment the system count
-  OUT.Syscount = OUT.Syscount+1
-  if len(geolocation)>0 { 
-    cnum := OUT.Country[geolocation]
-    OUT.Country[geolocation] = cnum+1
-  }
-  //Now start loading all the input fields and incrementing the counters in the map
-  for key := range(inputs) {
-    if key=="system_hash" || key=="usage_version" { continue }
-    OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
-  }
+
+  } //end check for non-empty ID
+  
 }
 
 func addToMap( M map[string]interface{}, key string, Val interface{}) map[string]interface{} {
@@ -303,6 +317,14 @@ func zero_out_stats() {
   OUT_COUNT = make(map[string]bool)
 }
 
+func zero_out_monthly_stats() {
+  OUT_MONTH = output_json{}
+  if OUT_MONTH.Country == nil {
+    OUT_MONTH.Country = make(map[string]float64)
+  }
+  OUT_COUNT_MONTH = make(map[string]bool)
+}
+
 // Get the latest daily file to store data
 func get_daily_filename() {
   t := time.Now()
@@ -318,13 +340,15 @@ func get_daily_filename() {
     DAILYFILE = newfile
     // Update the latest.json symlink
     os.Remove(SDIR + "/latest.json")
-    os.Symlink(newfile, SDIR+"/latest.json")
+    os.Symlink(DAILYFILE, SDIR+"/latest.json")
   }
   //Now see if we need to rotate the monthly id file as well
   newfile = SDIR+"/"+t.Format("2006-01")+".json"
   if newfile != MONTHLYFILE {
+    zero_out_monthly_stats()
     MONTHLYFILE = newfile
-    OUT_COUNT_MONTH = make(map[string]bool)
+    os.Remove(SDIR + "/latest-month.json")
+    os.Symlink(MONTHLYFILE, SDIR+"/latest-month.json")
   }
 
 }
@@ -336,8 +360,6 @@ func load_daily_file() {
     err = os.MkdirAll(SDIR, 0755)
     if err != nil { fmt.Println("[ERROR] Could not create output directory:", SDIR); os.Exit(1) }
   }
-  get_daily_filename()
-
   // No file yet? Lets clear out the struct
   if _, err := os.Stat(DAILYFILE); os.IsNotExist(err) {
     zero_out_stats()
@@ -354,11 +376,38 @@ func load_daily_file() {
     log.Println(err)
     log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
   }
-  // Now load the daily/monthly ID files
+  // Now load the ID file
   dat, err = ioutil.ReadFile(DAILYFILE+".id")
   if err == nil {
     json.Unmarshal(dat, &OUT_COUNT);
   }
+}
+
+func load_monthly_file() {
+  //Verify that the output directory exists
+  if _, err := os.Stat(SDIR); os.IsNotExist(err) {
+    err = os.MkdirAll(SDIR, 0755)
+    if err != nil { fmt.Println("[ERROR] Could not create output directory:", SDIR); os.Exit(1) }
+  }
+
+  // No file yet? Lets clear out the struct
+  if _, err := os.Stat(MONTHLYFILE); os.IsNotExist(err) {
+    zero_out_monthly_stats()
+    return
+  }
+
+  // Load the file into memory
+  dat, err := ioutil.ReadFile(MONTHLYFILE)
+  if err != nil {
+    log.Println(err)
+    log.Fatal("Failed loading daily file: " + DAILYFILE)
+  }
+  if err := json.Unmarshal(dat, &OUT_MONTH); err != nil {
+    log.Println(err)
+    log.Fatal("Failed unmarshal of JSON in DAILYFILE:")
+  }
+  // Now load the ID file
+
   dat, err = ioutil.ReadFile(MONTHLYFILE+".id")
   if err == nil {
     json.Unmarshal(dat, &OUT_COUNT_MONTH);
@@ -369,6 +418,8 @@ func flush_json_to_disk() {
   file, _ := json.MarshalIndent(OUT, "", " ")
   _ = ioutil.WriteFile(DAILYFILE, file, 0644)
   fmt.Println("Writing to File:", DAILYFILE);
+  file, _ = json.MarshalIndent(OUT_MONTH, "", " ")
+  _ = ioutil.WriteFile(MONTHLYFILE, file, 0644)
   file, _ = json.MarshalIndent(OUT_COUNT, "", " ")
   _ = ioutil.WriteFile(DAILYFILE+".id", file, 0644)
   file, _ = json.MarshalIndent(OUT_COUNT_MONTH, "", " ")
@@ -391,8 +442,10 @@ func main() {
       os.Exit(0)
     }()
 
-    // Read the daily file into memory at startup
+    // Read the current files into memory at startup
+    get_daily_filename()
     load_daily_file()
+    load_monthly_file()
 
     // Start our HTTP listener
     http.HandleFunc("/submit", submit)
@@ -401,7 +454,11 @@ func main() {
   } else {
     // Dev Test : Loading a list of files directly from the CLI
     //fmt.Println("test")
+    // Read the current files into memory at startup
+    get_daily_filename()
     load_daily_file()
+    load_monthly_file()
+
     for _, arg := range(os.Args[1:]) {
       readjson(arg)
     }

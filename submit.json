@@ -331,6 +331,7 @@
   ],
   "usage_version": 1,
   "version": "FreeNAS-11.3-MASTER-201905160622",
+  "legacy_ui_enabled": false,
   "vms": [
     {
       "autostart": false,

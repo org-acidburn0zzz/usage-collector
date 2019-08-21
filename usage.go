@@ -467,7 +467,7 @@ func main() {
 
     // Start our HTTP listener
     http.HandleFunc("/submit", submit)
-    log.Fatal(http.ListenAndServe(":8082", nil))
+    log.Fatal(http.ListenAndServe("127.0.0.1:8082", nil))
 
   } else {
     // Dev Test : Loading a list of files directly from the CLI

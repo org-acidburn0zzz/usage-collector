@@ -3,7 +3,12 @@
   "hardware": {
     "cpus": 1,
     "memory": 6399963136,
-    "nics": 11
+    "nics": 11,
+    "disks": [
+      {
+        "model": "WDC WD10EFRX-68FYTN0"
+      }
+    ]
   },
   "jails": [
     {

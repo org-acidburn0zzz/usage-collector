@@ -80,7 +80,7 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 	iparray := strings.Split(ips, ",")
 	ip := iparray[0]
 	isocode := get_location(ip)
-	fmt.Println("IP Address:", ip)
+	//fmt.Println("IP Address:", ip)
 
 	// Do this all within a locked mutex
 	wlock.Lock()
@@ -98,7 +98,7 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 	//log.Println(OUT)
 
 	// Do things with the data
-	parseInput(s, isocode)
+	parseInput(s, isocode, ip)
 
 	// Unlock the mutex now
 	wlock.Unlock()
@@ -114,14 +114,14 @@ func readjson( path string ) {
     jsfile.Close()
     //fmt.Println(_data)
     //fmt.Println("Input:", s)
-    parseInput(s,"LOCALTEST")
+    parseInput(s,"LOCALTEST", "")
     //raw, _ := json.MarshalIndent(OUT,"","  ")
     //fmt.Println( "Output:", OUT)
     //fmt.Println( string(raw) )
   }
 }
 
-func parseInput(inputs map[string]interface{}, geolocation string) {
+func parseInput(inputs map[string]interface{}, geolocation string, ip string) {
   //First verify that the system was not already counted
   id := ""
   if tmp, ok := inputs["system_hash"] ; ok {
@@ -133,12 +133,15 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
   }
   // DAILY STATS OBJECT
 
+  // Convert ID into ID + IP
+  id = id + "-" + ip
+
   // KPM - 1/25/2020 - Disable the unique hostid check, looks like many of the 'unique' ID's are coming up as dupes
-  //if _, ok:= OUT_COUNT[id] ; !ok {
+  if _, ok:= OUT_COUNT[id] ; !ok {
     OUT_COUNT[id] = true
     //increment the system count
     OUT.Syscount = OUT.Syscount+1
-    if len(geolocation)>0 { 
+    if len(geolocation)>0 {
       cnum := OUT.Country[geolocation]
       OUT.Country[geolocation] = cnum+1
     }
@@ -149,16 +152,16 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
     }
     OUT = get_storage_totals(OUT, inputs);
 
-  //} else {
-  //  fmt.Println("Existing ID: ", id);
-  //}
+  } else {
+    fmt.Println("Existing ID: ", id);
+  }
 
   // MONTHLY STATS OBJECT
   if _, ok:= OUT_COUNT_MONTH[id] ; !ok {
     OUT_COUNT_MONTH[id] = true
     //increment the system count
     OUT_MONTH.Syscount = OUT_MONTH.Syscount+1
-    if len(geolocation)>0 { 
+    if len(geolocation)>0 {
       cnum := OUT_MONTH.Country[geolocation]
       OUT_MONTH.Country[geolocation] = cnum+1
     }
@@ -169,7 +172,7 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
     }
     OUT_MONTH = get_storage_totals(OUT_MONTH, inputs);
   }
-  
+
 }
 
 func get_storage_totals( OutS output_json, IN map[string]interface{}) output_json {

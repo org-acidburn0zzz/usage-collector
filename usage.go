@@ -52,7 +52,7 @@ func convert_to_gigabytes(convert int) int {
 // Where is this request coming from?
 func get_location(clientip string) string {
   //log.Println("Checking IP: " + clientip)
-  db, err := geoip2.Open("GeoLite2-Country.mmdb")
+  db, err := geoip2.Open("/var/db/GeoLite2-Country.mmdb")
   if err != nil { log.Fatal(err) }
   defer db.Close()
 
@@ -76,8 +76,11 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 
 	// Lookup Geo IP
 	//ip,_,_ := net.SplitHostPort(req.RemoteAddr)
-	ip := req.Header.Get("X-Forwarded-For")
+	ips := req.Header.Get("X-Forwarded-For")
+	iparray := strings.Split(ips, ",")
+	ip := iparray[0]
 	isocode := get_location(ip)
+	fmt.Println("IP Address:", ip)
 
 	// Do this all within a locked mutex
 	wlock.Lock()
@@ -86,16 +89,19 @@ func submit(rw http.ResponseWriter, req *http.Request) {
 	// Every 20 updates, we update the JSON file on disk
 	if WCOUNTER >= 20 {
 		//log.Println("Flushing to disk")
+
 		flush_json_to_disk()
 		WCOUNTER = 0
 	} else {
 		WCOUNTER++
 	}
 	//log.Println(OUT)
-	// Unlock the mutex now
-	wlock.Unlock()
+
 	// Do things with the data
 	parseInput(s, isocode)
+
+	// Unlock the mutex now
+	wlock.Unlock()
 }
 
 func readjson( path string ) {
@@ -121,41 +127,48 @@ func parseInput(inputs map[string]interface{}, geolocation string) {
   if tmp, ok := inputs["system_hash"] ; ok {
     id = tmp.(string)
   }
-  if id != "" {
-    // DAILY STATS OBJECT
-    if _, ok:= OUT_COUNT[id] ; !ok {
-      OUT_COUNT[id] = true
-      //increment the system count
-      OUT.Syscount = OUT.Syscount+1
-      if len(geolocation)>0 { 
-        cnum := OUT.Country[geolocation]
-        OUT.Country[geolocation] = cnum+1
-      }
-      //Now start loading all the input fields and incrementing the counters in the map
-      for key := range(inputs) {
-        if key=="system_hash" || key=="usage_version" { continue }
-        OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
-      }
-      OUT = get_storage_totals(OUT, inputs);
-    }
-    // MONTHLY STATS OBJECT
-    if _, ok:= OUT_COUNT_MONTH[id] ; !ok {
-      OUT_COUNT_MONTH[id] = true
-      //increment the system count
-      OUT_MONTH.Syscount = OUT_MONTH.Syscount+1
-      if len(geolocation)>0 { 
-        cnum := OUT_MONTH.Country[geolocation]
-        OUT_MONTH.Country[geolocation] = cnum+1
-      }
-      //Now start loading all the input fields and incrementing the counters in the map
-      for key := range(inputs) {
-        if key=="system_hash" || key=="usage_version" { continue }
-        OUT_MONTH.Stats = addToMap( OUT_MONTH.Stats, key, inputs[key] )
-      }
-      OUT_MONTH = get_storage_totals(OUT_MONTH, inputs);
-    }
+  if ( id == "" ) {
+    fmt.Println("Empty ID:, %v", inputs);
+    return;
+  }
+  // DAILY STATS OBJECT
 
-  } //end check for non-empty ID
+  // KPM - 1/25/2020 - Disable the unique hostid check, looks like many of the 'unique' ID's are coming up as dupes
+  //if _, ok:= OUT_COUNT[id] ; !ok {
+    OUT_COUNT[id] = true
+    //increment the system count
+    OUT.Syscount = OUT.Syscount+1
+    if len(geolocation)>0 { 
+      cnum := OUT.Country[geolocation]
+      OUT.Country[geolocation] = cnum+1
+    }
+    //Now start loading all the input fields and incrementing the counters in the map
+    for key := range(inputs) {
+      if key=="system_hash" || key=="usage_version" { continue }
+      OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
+    }
+    OUT = get_storage_totals(OUT, inputs);
+
+  //} else {
+  //  fmt.Println("Existing ID: ", id);
+  //}
+
+  // MONTHLY STATS OBJECT
+  if _, ok:= OUT_COUNT_MONTH[id] ; !ok {
+    OUT_COUNT_MONTH[id] = true
+    //increment the system count
+    OUT_MONTH.Syscount = OUT_MONTH.Syscount+1
+    if len(geolocation)>0 { 
+      cnum := OUT_MONTH.Country[geolocation]
+      OUT_MONTH.Country[geolocation] = cnum+1
+    }
+    //Now start loading all the input fields and incrementing the counters in the map
+    for key := range(inputs) {
+      if key=="system_hash" || key=="usage_version" { continue }
+      OUT_MONTH.Stats = addToMap( OUT_MONTH.Stats, key, inputs[key] )
+    }
+    OUT_MONTH = get_storage_totals(OUT_MONTH, inputs);
+  }
   
 }
 

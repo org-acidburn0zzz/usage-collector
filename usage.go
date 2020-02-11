@@ -134,7 +134,8 @@ func parseInput(inputs map[string]interface{}, geolocation string, ip string) {
   // DAILY STATS OBJECT
 
   // Convert ID into ID + IP
-  id = id + "-" + ip
+  t := time.Now()
+  id = id + "-" + ip + "-" + t.String()
 
   // KPM - 1/25/2020 - Disable the unique hostid check, looks like many of the 'unique' ID's are coming up as dupes
   if _, ok:= OUT_COUNT[id] ; !ok {

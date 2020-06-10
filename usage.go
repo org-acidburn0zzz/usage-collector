@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -195,7 +196,7 @@ func get_storage_totals( OutS output_json, IN map[string]interface{}) output_jso
 func addToMap( M map[string]interface{}, key string, Val interface{}) map[string]interface{} {
   //fmt.Println("Add To Map", key, Val)
   v := reflect.ValueOf(Val)
-  
+
   if M == nil {
     M = make(map[string]interface{})
   }
@@ -208,10 +209,10 @@ func addToMap( M map[string]interface{}, key string, Val interface{}) map[string
       return M
 
   case reflect.Map:
-  	//fmt.Println("Map:", Val)
+	//fmt.Println("Map:", Val)
         sm := Val.(map[string]interface{})
-  	for field := range(sm){
-  	  MF = addToMap(MF, field, sm[field])
+	for field := range(sm){
+	  MF = addToMap(MF, field, sm[field])
         }
 
   case reflect.Slice:
@@ -221,35 +222,35 @@ func addToMap( M map[string]interface{}, key string, Val interface{}) map[string
   case reflect.Bool:
 	MF = addBoolToMap(MF, Val.(bool))
   case reflect.String:
-  	//fmt.Println("String",Val)
-  	MF = addStringToMap(MF, Val.(string))
+	//fmt.Println("String",Val)
+	MF = addStringToMap(MF, Val.(string))
 
   case reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64:
-  	//fmt.Println("INT",Val)
-  	MF = addNumberToMap(MF, Val.(int), key)
+	//fmt.Println("INT",Val)
+	MF = addNumberToMap(MF, Val.(int), key)
 
   case reflect.Uint, reflect.Uint8, reflect.Uint32, reflect.Uint64:
-  	//fmt.Println("UINT",Val)
-  	MF = addNumberToMap(MF, int( Val.(uint) ), key )
+	//fmt.Println("UINT",Val)
+	MF = addNumberToMap(MF, int( Val.(uint) ), key )
 
   case reflect.Float32:
-  	//fmt.Println("Float32",Val)
-  	MF = addNumberToMap(MF, int( Val.(float32)  ), key )
+	//fmt.Println("Float32",Val)
+	MF = addNumberToMap(MF, int( Val.(float32)  ), key )
 
   case reflect.Float64:
-  	//fmt.Println("Float64",Val)
-  	MF = addNumberToMap(MF, int( Val.(float64)  ), key )
+	//fmt.Println("Float64",Val)
+	MF = addNumberToMap(MF, int( Val.(float64)  ), key )
 
   case reflect.Complex64:
-  	//fmt.Println("Complex64",Val)
-  	//MF = addNumberToMap(MF, int( Val.(complex64)  ), key )
+	//fmt.Println("Complex64",Val)
+	//MF = addNumberToMap(MF, int( Val.(complex64)  ), key )
 
   case reflect.Complex128:
-  	//fmt.Println("Complex128",Val)
-  	//MF = addNumberToMap(MF, int( Val.(complex128)  ), key )
+	//fmt.Println("Complex128",Val)
+	//MF = addNumberToMap(MF, int( Val.(complex128)  ), key )
 
   default:
-  	fmt.Println("Default",Val, v.Kind())
+	fmt.Println("Default",Val, v.Kind())
   }
   if len(MF) == 0 { fmt.Println("[UNKNOWN]", key, Val) }
   M[key] = MF
@@ -266,7 +267,7 @@ func findUniqueKey( M map[string]interface{}) []string {
   }
   var out []string
   if !ok {
-    return out 
+    return out
   } else if (num == 2) {
     //This is a slice of keys
     for _, i := range(val.([]interface{})) { out = append(out, i.(string)) }
@@ -317,12 +318,19 @@ func addNumberToMap(M map[string]interface{}, val int, key string) map[string]in
   name := strconv.Itoa(val)
   if key=="memory" || key=="capacity" || strings.HasPrefix(key, "usedby") {
     val = convert_to_gigabytes(val);
+    if ( val > 100 ) {
+      val = round_to_hundred(val);
+    }
     name = strconv.Itoa(val)+"GB"
   }
   cnum := 0.0
   if num, err := M[name] ; err { cnum = num.(float64) }
   M[name] = cnum+1
   return M
+}
+
+func round_to_hundred(val int) int {
+  return int(math.Round( float64(val)/100 ) * 100)
 }
 
 func addStringToMap(M map[string]interface{}, name string) map[string]interface{} {
@@ -446,7 +454,7 @@ func load_monthly_file() {
   dat, err = ioutil.ReadFile(MONTHLYFILE+".id")
   if err == nil {
     json.Unmarshal(dat, &OUT_COUNT_MONTH);
-  }  
+  }
 }
 
 func flush_json_to_disk() {

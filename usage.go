@@ -24,6 +24,9 @@ var SDIR = "/var/db/ix-stats"
 
 // What file to store current stats in
 var DAILYFILE string
+var DAILYFILE_CORE string
+var DAILYFILE_ENTERPRISE string
+var DAILYFILE_SCALE string
 var MONTHLYFILE string
 
 // Create our mutex we use to prevent race conditions when updating
@@ -42,6 +45,9 @@ type output_json struct{
 
 }
 var OUT output_json
+var OUT_CORE output_json
+var OUT_ENTERPRISE output_json
+var OUT_SCALE output_json
 var OUT_COUNT map[string]bool
 var OUT_MONTH output_json
 var OUT_COUNT_MONTH map[string]bool
@@ -122,6 +128,23 @@ func readjson( path string ) {
   }
 }
 
+func addToJsonObject(OUTMAP output_json, geolocation string, inputs map[string]interface{} ) output_json {
+
+    //increment the system count
+    OUTMAP.Syscount = OUTMAP.Syscount+1
+    if len(geolocation)>0 {
+      cnum := OUTMAP.Country[geolocation]
+      OUTMAP.Country[geolocation] = cnum+1
+    }
+    //Now start loading all the input fields and incrementing the counters in the map
+    for key := range(inputs) {
+      if key=="system_hash" || key=="usage_version" { continue }
+      OUTMAP.Stats = addToMap( OUTMAP.Stats, key, inputs[key] )
+    }
+    OUTMAP = get_storage_totals(OUTMAP, inputs);
+    return OUTMAP
+}
+
 func parseInput(inputs map[string]interface{}, geolocation string, ip string) {
   //First verify that the system was not already counted
   id := ""
@@ -138,24 +161,32 @@ func parseInput(inputs map[string]interface{}, geolocation string, ip string) {
   t := time.Now()
   id = id + "-" + ip + "-" + t.String()
 
-  // KPM - 1/25/2020 - Disable the unique hostid check, looks like many of the 'unique' ID's are coming up as dupes
-  if _, ok:= OUT_COUNT[id] ; !ok {
-    OUT_COUNT[id] = true
-    //increment the system count
-    OUT.Syscount = OUT.Syscount+1
-    if len(geolocation)>0 {
-      cnum := OUT.Country[geolocation]
-      OUT.Country[geolocation] = cnum+1
-    }
-    //Now start loading all the input fields and incrementing the counters in the map
-    for key := range(inputs) {
-      if key=="system_hash" || key=="usage_version" { continue }
-      OUT.Stats = addToMap( OUT.Stats, key, inputs[key] )
-    }
-    OUT = get_storage_totals(OUT, inputs);
+  // Init our platform string
+  platform := "unknown"
 
-  } else {
-    fmt.Println("Existing ID: ", id);
+  OUT_COUNT[id] = true
+
+  // Locate the platform key
+  platform = fmt.Sprintf("%v", inputs["platform"])
+
+  // Add to the combined JSON object
+  OUT = addToJsonObject(OUT, geolocation, inputs)
+
+  // Add platform specific stats / files
+  switch platform {
+  case "FreeNAS":
+	OUT_CORE = addToJsonObject(OUT_CORE, geolocation, inputs)
+  case "TrueNAS":
+	OUT_ENTERPRISE = addToJsonObject(OUT_ENTERPRISE, geolocation, inputs)
+  case "TrueNAS-CORE":
+	OUT_CORE = addToJsonObject(OUT_CORE, geolocation, inputs)
+  case "TrueNAS-Enterprise":
+	OUT_ENTERPRISE = addToJsonObject(OUT_ENTERPRISE, geolocation, inputs)
+  case "TrueNAS-SCALE":
+	OUT_SCALE = addToJsonObject(OUT_SCALE, geolocation, inputs)
+  default:
+	fmt.Println("Invalid Platform ID:, %v", platform);
+
   }
 
   // MONTHLY STATS OBJECT
@@ -318,10 +349,20 @@ func addNumberToMap(M map[string]interface{}, val int, key string) map[string]in
   name := strconv.Itoa(val)
   if key=="memory" || key=="capacity" || strings.HasPrefix(key, "usedby") {
     val = convert_to_gigabytes(val);
-    if ( val > 100 ) {
+    if ( val > 1000 ) {
       val = round_to_hundred(val);
+    } else if ( val > 100 ) {
+      val = round_to_ten(val);
     }
     name = strconv.Itoa(val)+"GB"
+  }
+  if key=="snapshots" || key=="datasets" {
+    if ( val > 1000 ) {
+      val = round_to_hundred(val);
+    } else if ( val > 100 ) {
+      val = round_to_ten(val);
+    }
+    name = strconv.Itoa(val)
   }
   cnum := 0.0
   if num, err := M[name] ; err { cnum = num.(float64) }
@@ -331,6 +372,10 @@ func addNumberToMap(M map[string]interface{}, val int, key string) map[string]in
 
 func round_to_hundred(val int) int {
   return int(math.Round( float64(val)/100 ) * 100)
+}
+
+func round_to_ten(val int) int {
+  return int(math.Round( float64(val)/10 ) * 10)
 }
 
 func addStringToMap(M map[string]interface{}, name string) map[string]interface{} {
@@ -358,6 +403,21 @@ func zero_out_stats() {
     OUT.Country = make(map[string]float64)
   }
   OUT_COUNT = make(map[string]bool)
+
+  OUT_CORE = output_json{}
+  if OUT_CORE.Country == nil {
+    OUT_CORE.Country = make(map[string]float64)
+  }
+
+  OUT_ENTERPRISE = output_json{}
+  if OUT_ENTERPRISE.Country == nil {
+    OUT_ENTERPRISE.Country = make(map[string]float64)
+  }
+
+  OUT_SCALE = output_json{}
+  if OUT_SCALE.Country == nil {
+    OUT_SCALE.Country = make(map[string]float64)
+  }
 }
 
 func zero_out_monthly_stats() {
@@ -371,7 +431,11 @@ func zero_out_monthly_stats() {
 // Get the latest daily file to store data
 func get_daily_filename() {
   t := time.Now()
+
   newfile := SDIR + "/" + t.Format("2006-01-02") + ".json"
+  newfile_core := SDIR + "/" + t.Format("2006-01-02") + "-CORE.json"
+  newfile_enterprise := SDIR + "/" + t.Format("2006-01-02") + "-ENTERPRISE.json"
+  newfile_scale := SDIR + "/" + t.Format("2006-01-02") + "-SCALE.json"
   if newfile != DAILYFILE {
     // Flush previous data to disk
     if DAILYFILE != "" {
@@ -381,10 +445,24 @@ func get_daily_filename() {
     zero_out_stats()
     // Set new DAILYFILE
     DAILYFILE = newfile
+    DAILYFILE_CORE = newfile_core
+    DAILYFILE_ENTERPRISE = newfile_enterprise
+    DAILYFILE_SCALE = newfile_scale
+
     // Update the latest.json symlink
     os.Remove(SDIR + "/latest.json")
     os.Symlink(DAILYFILE, SDIR+"/latest.json")
+
+    os.Remove(SDIR + "/latest-CORE.json")
+    os.Symlink(DAILYFILE_CORE, SDIR+"/latest-CORE.json")
+
+    os.Remove(SDIR + "/latest-ENTERPRISE.json")
+    os.Symlink(DAILYFILE_ENTERPRISE, SDIR+"/latest-ENTERPRISE.json")
+
+    os.Remove(SDIR + "/latest-SCALE.json")
+    os.Symlink(DAILYFILE_SCALE, SDIR+"/latest-SCALE.json")
   }
+
   //Now see if we need to rotate the monthly id file as well
   newfile = SDIR+"/"+t.Format("2006-01")+".json"
   if newfile != MONTHLYFILE {
@@ -424,6 +502,40 @@ func load_daily_file() {
   if err == nil {
     json.Unmarshal(dat, &OUT_COUNT);
   }
+
+  // Load the CORE file into memory
+  dat, err = ioutil.ReadFile(DAILYFILE_CORE)
+  if err != nil {
+    log.Println(err)
+    log.Println("Failed loading daily file: " + DAILYFILE_CORE)
+  }
+  if err = json.Unmarshal(dat, &OUT_CORE); err != nil {
+    log.Println(err)
+    log.Println("Failed unmarshal of JSON in DAILYFILE_CORE:")
+  }
+
+  // Load the ENTERPRISE file into memory
+  dat, err = ioutil.ReadFile(DAILYFILE_ENTERPRISE)
+  if err != nil {
+    log.Println(err)
+    log.Println("Failed loading daily file: " + DAILYFILE_ENTERPRISE)
+  }
+  if err = json.Unmarshal(dat, &OUT_ENTERPRISE); err != nil {
+    log.Println(err)
+    log.Println("Failed unmarshal of JSON in DAILYFILE_ENTERPRISE:")
+  }
+
+  // Load the SCALE file into memory
+  dat, err = ioutil.ReadFile(DAILYFILE_SCALE)
+  if err != nil {
+    log.Println(err)
+    log.Println("Failed loading daily file: " + DAILYFILE_SCALE)
+  }
+  if err = json.Unmarshal(dat, &OUT_SCALE); err != nil {
+    log.Println(err)
+    log.Println("Failed unmarshal of JSON in DAILYFILE_SCALE:")
+  }
+
 }
 
 func load_monthly_file() {
@@ -458,13 +570,23 @@ func load_monthly_file() {
 }
 
 func flush_json_to_disk() {
-  fmt.Println("Writing to Files:", DAILYFILE, MONTHLYFILE);
+  fmt.Println("Writing to Files:", DAILYFILE, DAILYFILE_CORE, DAILYFILE_ENTERPRISE, DAILYFILE_SCALE, MONTHLYFILE);
   file, _ := json.MarshalIndent(OUT, "", " ")
   _ = ioutil.WriteFile(DAILYFILE, file, 0644)
-  file, _ = json.MarshalIndent(OUT_MONTH, "", " ")
-  _ = ioutil.WriteFile(MONTHLYFILE, file, 0644)
   file, _ = json.MarshalIndent(OUT_COUNT, "", " ")
   _ = ioutil.WriteFile(DAILYFILE+".id", file, 0644)
+
+  file, _ = json.MarshalIndent(OUT_CORE, "", " ")
+  _ = ioutil.WriteFile(DAILYFILE_CORE, file, 0644)
+
+  file, _ = json.MarshalIndent(OUT_ENTERPRISE, "", " ")
+  _ = ioutil.WriteFile(DAILYFILE_ENTERPRISE, file, 0644)
+
+  file, _ = json.MarshalIndent(OUT_SCALE, "", " ")
+  _ = ioutil.WriteFile(DAILYFILE_SCALE, file, 0644)
+
+  file, _ = json.MarshalIndent(OUT_MONTH, "", " ")
+  _ = ioutil.WriteFile(MONTHLYFILE, file, 0644)
   file, _ = json.MarshalIndent(OUT_COUNT_MONTH, "", " ")
   _ = ioutil.WriteFile(MONTHLYFILE+".id", file, 0644)
   //fmt.Println( string(file))

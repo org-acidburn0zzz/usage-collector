@@ -347,9 +347,13 @@ func addNumberToMap(M map[string]interface{}, val int, key string) map[string]in
   //fmt.Println("Add Number to Map:", val)
   //Check if this number needs to be converted to GB first
   name := strconv.Itoa(val)
-  if key=="memory" || key=="capacity" || strings.HasPrefix(key, "usedby") {
+  if key=="memory" || key=="capacity" || key=="total_size" || key=="filesize" ||
+     key=="data_without_backup_size" || key=="cloudsync" || key=="rsync" ||
+     key=="zfs_replication" || key=="rsynctask" || strings.HasPrefix(key, "usedby") {
     val = convert_to_gigabytes(val);
-    if ( val > 1000 ) {
+    if ( val > 10000 ) {
+      val = round_to_thousand(val);
+    } else if ( val > 1000 ) {
       val = round_to_hundred(val);
     } else if ( val > 100 ) {
       val = round_to_ten(val);
@@ -357,7 +361,9 @@ func addNumberToMap(M map[string]interface{}, val int, key string) map[string]in
     name = strconv.Itoa(val)+"GB"
   }
   if key=="snapshots" || key=="datasets" {
-    if ( val > 1000 ) {
+    if ( val > 10000 ) {
+      val = round_to_thousand(val);
+    } else if ( val > 1000 ) {
       val = round_to_hundred(val);
     } else if ( val > 100 ) {
       val = round_to_ten(val);
@@ -368,6 +374,10 @@ func addNumberToMap(M map[string]interface{}, val int, key string) map[string]in
   if num, err := M[name] ; err { cnum = num.(float64) }
   M[name] = cnum+1
   return M
+}
+
+func round_to_thousand(val int) int {
+  return int(math.Round( float64(val)/1000) * 1000)
 }
 
 func round_to_hundred(val int) int {
